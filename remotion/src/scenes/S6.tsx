@@ -2,222 +2,458 @@ import React from "react";
 import {
   AbsoluteFill,
   useCurrentFrame,
-  Img,
-  staticFile,
+  useVideoConfig,
   interpolate,
   Easing,
 } from "remotion";
-import { FONTS } from "../lib/styles";
-import { secondsToFrames } from "../lib/animations";
+
+// 자막용 흰 테두리
+const captionStroke = `
+  -2px -2px 0 #FFF,
+   2px -2px 0 #FFF,
+  -2px  2px 0 #FFF,
+   2px  2px 0 #FFF,
+  -3px  0   0 #FFF,
+   3px  0   0 #FFF,
+   0   -3px 0 #FFF,
+   0    3px 0 #FFF
+`;
+
+// 일반 텍스트용 검은 테두리
+const textStroke = `
+  -2px -2px 0 #000,
+   2px -2px 0 #000,
+  -2px  2px 0 #000,
+   2px  2px 0 #000,
+  -3px  0   0 #000,
+   3px  0   0 #000,
+   0   -3px 0 #000,
+   0    3px 0 #000
+`;
+
+// 자막 데이터 (s6_timed.json - 상대 시간으로 변환, scene_start: 13.98)
+const captions = [
+  { text: "그런데 18세기에 이르면 상황이 완전히 달라집니다.", start: 0.0, end: 3.40 },
+  { text: "한양의 인구는 무려 20만 명으로 두 배 가까이 폭증했습니다.", start: 3.88, end: 7.46 },
+  { text: "같은 시기 1785년 영국에서 인구 5만 명을 넘긴 도시가", start: 8.26, end: 13.34 },
+  { text: "런던, 맨체스터, 버밍엄, 리즈 단 네 곳뿐이었다는 점을 생각하면,", start: 13.34, end: 18.08 },
+  { text: "한양은 당시 세계에서 손꼽히는 대도시였던 겁니다.", start: 18.18, end: 22.40 },
+];
+
+// 영국 도시 데이터 (비교용)
+const ukCities = [
+  { name: "런던", population: 95 },
+  { name: "맨체스터", population: 7 },
+  { name: "버밍엄", population: 5.5 },
+  { name: "리즈", population: 5 },
+];
 
 export const S6: React.FC = () => {
   const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const currentTime = frame / fps;
 
-  // Step 1: time_range [0, 1.5] - "대형 함선이 많을수록"
-  const bgMapOpacity = interpolate(
-    frame,
-    [0, secondsToFrames(0.5)],
-    [0, 0.6],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+  // 현재 자막
+  const currentCaption = captions.find(
+    (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  const straitBgDelay = secondsToFrames(0.3);
-  const straitBgOpacity = interpolate(
-    frame,
-    [straitBgDelay, straitBgDelay + secondsToFrames(0.6)],
-    [0, 0.3],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
+  // 18세기 연도 표시
+  const yearOpacity = interpolate(frame, [0, 20], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 
-  const ship1Delay = secondsToFrames(0.5);
-  const ship1Opacity = interpolate(
+  // 인구 그래프 애니메이션 (10만 → 20만)
+  const graphStartFrame = 3.88 * fps;
+  const graphEndFrame = 7 * fps;
+
+  // 왼쪽 막대 (10만)
+  const bar1Height = 180;
+  const bar1Opacity = interpolate(
     frame,
-    [ship1Delay, ship1Delay + secondsToFrames(0.4)],
+    [graphStartFrame, graphStartFrame + 15],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
   );
 
-  const ship2Delay = secondsToFrames(0.7);
-  const ship2Opacity = interpolate(
+  // 오른쪽 막대 (20만) - 성장 애니메이션
+  const bar2Progress = interpolate(
     frame,
-    [ship2Delay, ship2Delay + secondsToFrames(0.4)],
+    [graphStartFrame + 20, graphEndFrame],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.33, 1, 0.68, 1),
+    }
   );
-
-  const ship3Delay = secondsToFrames(0.9);
-  const ship3Opacity = interpolate(
+  const bar2Height = bar1Height + bar1Height * bar2Progress;
+  const bar2Opacity = interpolate(
     frame,
-    [ship3Delay, ship3Delay + secondsToFrames(0.4)],
+    [graphStartFrame + 15, graphStartFrame + 30],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
   );
 
-  // Step 2: time_range [1.5, 3.32] - "불리한 지형입니다"
-  const step2Start = secondsToFrames(1.5);
-
-  const chaosOpacity = interpolate(
+  // 영국 비교 차트 (8.26초부터)
+  const comparisonStartFrame = 8.26 * fps;
+  const comparisonOpacity = interpolate(
     frame,
-    [step2Start, step2Start + secondsToFrames(0.5)],
+    [comparisonStartFrame, comparisonStartFrame + 20],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
   );
 
-  const mainTextDelay = step2Start + secondsToFrames(0.3);
-  const mainTextOpacity = interpolate(
+  // 한양 강조 (18.18초부터)
+  const hanyangHighlightStart = 18.18 * fps;
+  const hanyangGlow = interpolate(
     frame,
-    [mainTextDelay, mainTextDelay + secondsToFrames(0.6)],
+    [hanyangHighlightStart, hanyangHighlightStart + 20],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  );
+  const hanyangScale = interpolate(
+    frame,
+    [hanyangHighlightStart, hanyangHighlightStart + 20],
+    [0.5, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
+    }
   );
 
-  // Shake effect for ships
-  const shakeStart = step2Start + secondsToFrames(0.5);
-  const shakeEnd = shakeStart + secondsToFrames(0.6);
-  const shakeIntensity = 5;
-  const shakeOffset = frame >= shakeStart && frame <= shakeEnd
-    ? Math.sin((frame - shakeStart) * 0.6) * shakeIntensity
-    : 0;
+  // 글로우 펄스
+  const glowPulse = Math.sin(frame * 0.1) * 0.3 + 0.7;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#1a1a2e" }}>
-      {/* Background Map */}
-      <Img
-        src={staticFile("assets/maps/uldolmok_strait.png")}
-        style={{
-          position: "absolute",
-          width: "143%",
-          height: "143%",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          opacity: bgMapOpacity,
-          filter: "sepia(0.4) contrast(1.1) brightness(0.9)",
-          zIndex: -100,
-        }}
-      />
-
-      {/* Narrow Strait Background */}
+    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
+      {/* 18세기 연도 표시 */}
       <div
         style={{
           position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 300,
-          height: 800,
-          backgroundColor: "#2a4a6a",
-          opacity: straitBgOpacity,
-          zIndex: 10,
-        }}
-      />
-
-      {/* Large Ship Left */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${-100 + shakeOffset}px), calc(-50% + ${-100}px)) scale(0.2) rotate(15deg)`,
-          opacity: ship1Opacity,
-          zIndex: 50,
+          top: "8%",
+          left: "8%",
+          opacity: yearOpacity,
         }}
       >
-        <Img
-          src={staticFile("assets/icons/ship_icon_japan.png")}
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.3) brightness(0.8)",
+            fontSize: 72,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 700,
+            color: "#D4AF37",
+            textShadow: `${textStroke}, 0 0 20px rgba(212, 175, 55, 0.5)`,
           }}
-        />
+        >
+          18세기
+        </div>
       </div>
 
-      {/* Large Ship Right */}
+      {/* 인구 비교 그래프 */}
       <div
         style={{
           position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${100 + shakeOffset}px), calc(-50% + ${50}px)) scale(0.2) rotate(-15deg)`,
-          opacity: ship2Opacity,
-          zIndex: 50,
+          top: "25%",
+          left: "8%",
+          display: "flex",
+          alignItems: "flex-end",
+          gap: 60,
         }}
       >
-        <Img
-          src={staticFile("assets/icons/ship_icon_japan.png")}
+        {/* 15세기 (10만) */}
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.3) brightness(0.8)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            opacity: bar1Opacity,
           }}
-        />
-      </div>
+        >
+          <div
+            style={{
+              width: 100,
+              height: bar1Height,
+              background: "linear-gradient(180deg, #8B4513 0%, #5D2E0C 100%)",
+              borderRadius: "10px 10px 0 0",
+              boxShadow: "0 4px 15px rgba(0, 0, 0, 0.4)",
+            }}
+          />
+          <div
+            style={{
+              marginTop: 12,
+              fontSize: 32,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 600,
+              color: "#FFFFFF",
+              textShadow: textStroke,
+            }}
+          >
+            15세기
+          </div>
+          <div
+            style={{
+              fontSize: 40,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 700,
+              color: "#8B4513",
+              textShadow: captionStroke,
+            }}
+          >
+            10만명
+          </div>
+        </div>
 
-      {/* Large Ship Center */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${shakeOffset}px), calc(-50% + ${150}px)) scale(0.18) rotate(8deg)`,
-          opacity: ship3Opacity,
-          zIndex: 50,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/ship_icon_japan.png")}
+        {/* 화살표 */}
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.3) brightness(0.8)",
+            fontSize: 60,
+            color: "#FFD700",
+            textShadow: `0 0 15px rgba(255, 215, 0, ${glowPulse})`,
+            marginBottom: 80,
+            opacity: bar2Opacity,
           }}
-        />
-      </div>
+        >
+          →
+        </div>
 
-      {/* Chaos Symbol */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%) scale(0.3)",
-          opacity: chaosOpacity,
-          zIndex: 100,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/chaos_symbol.png")}
+        {/* 18세기 (20만) */}
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.4) brightness(1.1)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            opacity: bar2Opacity,
           }}
-        />
+        >
+          <div
+            style={{
+              width: 100,
+              height: bar2Height,
+              background: "linear-gradient(180deg, #FFD700 0%, #CC9900 100%)",
+              borderRadius: "10px 10px 0 0",
+              boxShadow: `0 4px 20px rgba(255, 215, 0, ${glowPulse})`,
+            }}
+          />
+          <div
+            style={{
+              marginTop: 12,
+              fontSize: 32,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 600,
+              color: "#FFFFFF",
+              textShadow: textStroke,
+            }}
+          >
+            18세기
+          </div>
+          <div
+            style={{
+              fontSize: 48,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 800,
+              color: "#FFD700",
+              textShadow: textStroke,
+            }}
+          >
+            20만명
+          </div>
+
+          {/* x2 강조 */}
+          <div
+            style={{
+              position: "absolute",
+              top: -40,
+              right: -60,
+              fontSize: 56,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 800,
+              color: "#FF6B35",
+              textShadow: `${textStroke}, 0 0 20px rgba(255, 107, 53, 0.8)`,
+              opacity: bar2Progress,
+            }}
+          >
+            x2
+          </div>
+        </div>
       </div>
 
-      {/* Main Text */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${-300}px))`,
-          opacity: mainTextOpacity,
-          fontSize: 75,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4443f",
-          textAlign: "center",
-          lineHeight: 1.5,
-          textShadow: "4px 4px 0 #2a1810",
-          WebkitTextStroke: "4px #2a1810",
-          whiteSpace: "pre-line",
-          zIndex: 200,
-        }}
-      >
-        {`대형 함선이 많을수록\n불리한 지형`}
-      </div>
+      {/* 영국 비교 차트 */}
+      {frame >= comparisonStartFrame && (
+        <div
+          style={{
+            position: "absolute",
+            right: "6%",
+            top: "20%",
+            opacity: comparisonOpacity,
+            backgroundColor: "rgba(0, 0, 0, 0.75)",
+            padding: "25px 35px",
+            borderRadius: 20,
+            border: "2px solid #D4AF37",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 32,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 700,
+              color: "#D4AF37",
+              marginBottom: 15,
+              textAlign: "center",
+            }}
+          >
+            1785년 영국
+          </div>
+          <div
+            style={{
+              fontSize: 24,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 500,
+              color: "#CCCCCC",
+              marginBottom: 12,
+            }}
+          >
+            인구 5만 이상 도시:
+          </div>
+          {ukCities.map((city, index) => {
+            const cityDelay = comparisonStartFrame + (index + 1) * 8;
+            const cityOpacity = interpolate(
+              frame,
+              [cityDelay, cityDelay + 10],
+              [0, 1],
+              {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              }
+            );
+            const barWidth = interpolate(
+              frame,
+              [cityDelay, cityDelay + 15],
+              [0, city.population * 2],
+              {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+                easing: Easing.bezier(0.33, 1, 0.68, 1),
+              }
+            );
+            return (
+              <div
+                key={city.name}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  marginBottom: 10,
+                  opacity: cityOpacity,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 28,
+                    fontFamily: "Pretendard, sans-serif",
+                    fontWeight: 500,
+                    color: "#FFFFFF",
+                    width: 110,
+                  }}
+                >
+                  {index + 1}. {city.name}
+                </span>
+                <div
+                  style={{
+                    width: barWidth,
+                    height: 20,
+                    background: "linear-gradient(90deg, #4A90D9 0%, #2E5A8C 100%)",
+                    borderRadius: 5,
+                  }}
+                />
+              </div>
+            );
+          })}
+          <div
+            style={{
+              marginTop: 15,
+              fontSize: 36,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 700,
+              color: "#FF6B6B",
+              textAlign: "center",
+            }}
+          >
+            단 4곳!
+          </div>
+        </div>
+      )}
+
+      {/* 한양 = 세계적 대도시 강조 */}
+      {frame >= hanyangHighlightStart && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "28%",
+            left: 0,
+            right: 0,
+            textAlign: "center",
+            opacity: hanyangGlow,
+            transform: `scale(${hanyangScale})`,
+          }}
+        >
+          <div
+            style={{
+              display: "inline-block",
+              background: "linear-gradient(135deg, rgba(255, 215, 0, 0.9) 0%, rgba(204, 153, 0, 0.9) 100%)",
+              padding: "20px 50px",
+              borderRadius: 20,
+              boxShadow: `0 0 40px rgba(255, 215, 0, ${glowPulse})`,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 56,
+                fontFamily: "Pretendard, sans-serif",
+                fontWeight: 800,
+                color: "#000000",
+              }}
+            >
+              한양 = 세계적 대도시
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* 자막 */}
+      {currentCaption && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 40,
+            left: 0,
+            right: 0,
+            textAlign: "center",
+            fontSize: 45,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 600,
+            color: "#000000",
+            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
+            padding: "0 40px",
+            zIndex: 1000,
+          }}
+        >
+          {currentCaption.text}
+        </div>
+      )}
     </AbsoluteFill>
   );
 };

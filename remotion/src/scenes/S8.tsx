@@ -2,284 +2,303 @@ import React from "react";
 import {
   AbsoluteFill,
   useCurrentFrame,
+  useVideoConfig,
   Img,
   staticFile,
   interpolate,
   Easing,
 } from "remotion";
-import { FONTS } from "../lib/styles";
-import { secondsToFrames } from "../lib/animations";
+
+// 자막용 흰 테두리
+const captionStroke = `
+  -2px -2px 0 #FFF,
+   2px -2px 0 #FFF,
+  -2px  2px 0 #FFF,
+   2px  2px 0 #FFF,
+  -3px  0   0 #FFF,
+   3px  0   0 #FFF,
+   0   -3px 0 #FFF,
+   0    3px 0 #FFF
+`;
+
+// 일반 텍스트용 검은 테두리
+const textStroke = `
+  -2px -2px 0 #000,
+   2px -2px 0 #000,
+  -2px  2px 0 #000,
+   2px  2px 0 #000,
+  -3px  0   0 #000,
+   3px  0   0 #000,
+   0   -3px 0 #000,
+   0    3px 0 #000
+`;
+
+// 자막 데이터 (s8_timed.json - 상대 시간으로 변환)
+const captions = [
+  { text: "문제는 이 많은 사람들이 매일 쏟아내는 분뇨였습니다.", start: 0.0, end: 2.82 },
+  { text: "20만 명이 하루에 배출하는 분뇨의 양은 얼마나 될까요?", start: 2.82, end: 6.54 },
+];
 
 export const S8: React.FC = () => {
   const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const currentTime = frame / fps;
 
-  // Step 1: time_range [0, 2.5] - "열두 척 중 싸우는 배는 단 한 척"
-  const bgMapOpacity = interpolate(
-    frame,
-    [0, secondsToFrames(0.6)],
-    [0, 0.5],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+  // 현재 자막
+  const currentCaption = captions.find(
+    (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  const battleBgDelay = secondsToFrames(0.3);
-  const battleBgOpacity = interpolate(
-    frame,
-    [battleBgDelay, battleBgDelay + secondsToFrames(0.8)],
-    [0, 0.4],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
+  // 인물 아이콘 그룹 등장
+  const peopleOpacity = interpolate(frame, [10, 40], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 
-  const spotlightDelay = secondsToFrames(0.5);
-  const spotlightOpacity = interpolate(
-    frame,
-    [spotlightDelay, spotlightDelay + secondsToFrames(0.8)],
-    [0, 0.15],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
+  // 인물 그룹 스케일
+  const groupScale = interpolate(frame, [10, 60], [0.8, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.33, 1, 0.68, 1),
+  });
 
-  const vsDelay = secondsToFrames(1.0);
-  const vsScale = interpolate(
+  // 20만 명 텍스트
+  const populationOpacity = interpolate(frame, [30, 50], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  // 화살표 흐름 효과 (분뇨 암시)
+  const arrowStartFrame = 1.5 * fps;
+
+  // 물음표 등장 (3초부터)
+  const questionStartFrame = 3 * fps;
+  const questionScale = interpolate(
     frame,
-    [vsDelay, vsDelay + secondsToFrames(0.6)],
+    [questionStartFrame, questionStartFrame + 20],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5)) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
+    }
   );
-  const vsOpacity = interpolate(
+  const questionOpacity = interpolate(
     frame,
-    [vsDelay, vsDelay + secondsToFrames(0.6)],
+    [questionStartFrame, questionStartFrame + 15],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
   );
 
-  // Step 2: time_range [2.5, 4.5] - "그의 배뿐이었습니다"
-  const step2Start = secondsToFrames(2.5);
+  // 물음표 펄스
+  const questionPulse = frame >= questionStartFrame + 20
+    ? 1 + Math.sin((frame - questionStartFrame - 20) * 0.15) * 0.1
+    : questionScale;
 
-  const flagshipPulseCycle = secondsToFrames(0.8);
-  const flagshipScale = frame >= step2Start
-    ? 0.25 + Math.sin(((frame - step2Start) / flagshipPulseCycle) * Math.PI) * 0.015
-    : 0.25;
-
-  const spotlightPulse = frame >= step2Start
-    ? 0.15 + Math.sin(((frame - step2Start) / flagshipPulseCycle) * Math.PI) * 0.05
-    : spotlightOpacity;
-
-  // Step 3: time_range [4.5, 7.28] - "두 시간 동안 홀로 버텼습니다"
-  const step3Start = secondsToFrames(4.5);
-
-  const timeScale = interpolate(
-    frame,
-    [step3Start, step3Start + secondsToFrames(0.6)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5)) }
-  );
-  const timeOpacity = interpolate(
-    frame,
-    [step3Start, step3Start + secondsToFrames(0.6)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-
-  const subtitleDelay = step3Start + secondsToFrames(0.5);
-  const subtitleOpacity = interpolate(
-    frame,
-    [subtitleDelay, subtitleDelay + secondsToFrames(0.5)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  const collision1Delay = step3Start + secondsToFrames(0.8);
-  const collision1Opacity = interpolate(
-    frame,
-    [collision1Delay, collision1Delay + secondsToFrames(0.4)],
-    [0, 0.8],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  const collision2Delay = step3Start + secondsToFrames(1.1);
-  const collision2Opacity = interpolate(
-    frame,
-    [collision2Delay, collision2Delay + secondsToFrames(0.4)],
-    [0, 0.8],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
+  // 글로우 펄스
+  const glowPulse = Math.sin(frame * 0.12) * 0.3 + 0.7;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#1a1a2e" }}>
-      {/* Background Map */}
-      <Img
-        src={staticFile("assets/maps/uldolmok_strait.png")}
-        style={{
-          position: "absolute",
-          width: "143%",
-          height: "143%",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          opacity: bgMapOpacity,
-          filter: "sepia(0.5) contrast(1.2) brightness(0.85)",
-          zIndex: -100,
-        }}
-      />
-
-      {/* Battle Background (Fire) */}
+    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
+      {/* 인물 아이콘 그룹 */}
       <div
         style={{
           position: "absolute",
+          top: "18%",
           left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%) scale(1.2)",
-          opacity: battleBgOpacity,
-          zIndex: 0,
+          transform: `translate(-50%, 0) scale(${groupScale})`,
+          opacity: peopleOpacity,
         }}
       >
         <Img
-          src={staticFile("assets/backgrounds/fire_arrows.png")}
+          src={staticFile("assets/icons/people_group.png")}
           style={{
-            width: 1344,
-            height: 768,
-            filter: "sepia(0.4) contrast(1.15)",
+            width: 550,
+            height: "auto",
+            filter: "drop-shadow(0 6px 15px rgba(0, 0, 0, 0.4))",
           }}
         />
       </div>
 
-      {/* Spotlight Circle */}
+      {/* 20만 명 텍스트 */}
       <div
         style={{
           position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 400,
-          height: 400,
-          borderRadius: "50%",
-          backgroundColor: "#d4af37",
-          opacity: frame >= step2Start ? spotlightPulse : spotlightOpacity,
-          zIndex: 20,
-        }}
-      />
-
-      {/* Yi Flagship Solo */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, -50%) scale(${flagshipScale})`,
-          opacity: 1,
-          zIndex: 100,
+          top: "15%",
+          right: "10%",
+          opacity: populationOpacity,
         }}
       >
-        <Img
-          src={staticFile("assets/icons/ship_icon_joseon.png")}
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.3) brightness(1.1) contrast(1.2)",
+            backgroundColor: "rgba(0, 0, 0, 0.8)",
+            padding: "18px 30px",
+            borderRadius: 15,
+            border: "3px solid #FFD700",
+            boxShadow: `0 0 20px rgba(255, 215, 0, ${glowPulse})`,
           }}
-        />
+        >
+          <div
+            style={{
+              fontSize: 56,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 800,
+              color: "#FFD700",
+            }}
+          >
+            20만 명
+          </div>
+        </div>
       </div>
 
-      {/* VS Text */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${-300}px)) scale(${vsScale})`,
-          opacity: vsOpacity,
-          fontSize: 85,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4443f",
-          textShadow: "4px 4px 0 #2a1810",
-          WebkitTextStroke: "4px #2a1810",
-          zIndex: 200,
-        }}
-      >
-        1척 vs 133척
-      </div>
-
-      {/* Time Display */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${300}px)) scale(${timeScale})`,
-          opacity: timeOpacity,
-          fontSize: 100,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4af37",
-          textShadow: "5px 5px 0 #2a1810",
-          WebkitTextStroke: "5px #2a1810",
-          zIndex: 200,
-        }}
-      >
-        2시간
-      </div>
-
-      {/* Time Subtitle */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${390}px))`,
-          opacity: subtitleOpacity,
-          fontSize: 55,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "normal",
-          color: "#e8d5b7",
-          textShadow: "2px 2px 0 #2a1810",
-          WebkitTextStroke: "2px #2a1810",
-          zIndex: 200,
-        }}
-      >
-        홀로 버팀
-      </div>
-
-      {/* Collision Effect 1 */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${-350}px), calc(-50% + ${-150}px)) scale(0.15)`,
-          opacity: collision1Opacity,
-          zIndex: 80,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/collision_effect.png")}
+      {/* 아래로 향하는 화살표 (분뇨 흐름 암시) */}
+      {frame >= arrowStartFrame && (
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.3) brightness(1.3)",
+            position: "absolute",
+            top: "48%",
+            left: "50%",
+            transform: "translate(-50%, 0)",
           }}
-        />
-      </div>
+        >
+          {[0, 1, 2].map((i) => {
+            const arrowDelay = arrowStartFrame + i * 12;
+            const arrowOpacity = interpolate(
+              frame,
+              [arrowDelay, arrowDelay + 15, arrowDelay + 45, arrowDelay + 55],
+              [0, 0.9, 0.9, 0],
+              {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              }
+            );
+            const arrowY = interpolate(
+              frame,
+              [arrowDelay, arrowDelay + 55],
+              [0, 60],
+              {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              }
+            );
+            return (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  left: `${(i - 1) * 90}px`,
+                  top: arrowY,
+                  width: 0,
+                  height: 0,
+                  borderLeft: "28px solid transparent",
+                  borderRight: "28px solid transparent",
+                  borderTop: "45px solid #8B4513",
+                  opacity: arrowOpacity,
+                  filter: "drop-shadow(0 4px 8px rgba(139, 69, 19, 0.5))",
+                }}
+              />
+            );
+          })}
+        </div>
+      )}
 
-      {/* Collision Effect 2 */}
+      {/* 매일 분뇨 텍스트 */}
       <div
         style={{
           position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${350}px), calc(-50% + ${150}px)) scale(0.15)`,
-          opacity: collision2Opacity,
-          zIndex: 80,
+          top: "48%",
+          left: "12%",
+          opacity: interpolate(frame, [25, 45], [0, 1], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          }),
         }}
       >
-        <Img
-          src={staticFile("assets/icons/collision_effect.png")}
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.3) brightness(1.3)",
+            fontSize: 44,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 700,
+            color: "#FFFFFF",
+            textShadow: textStroke,
           }}
-        />
+        >
+          매일 쏟아내는
+        </div>
+        <div
+          style={{
+            fontSize: 60,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 800,
+            color: "#8B4513",
+            textShadow: captionStroke,
+            marginTop: 8,
+          }}
+        >
+          분뇨
+        </div>
       </div>
+
+      {/* 물음표 아이콘 + 얼마나? */}
+      {frame >= questionStartFrame && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "28%",
+            left: "50%",
+            transform: `translate(-50%, 0) scale(${questionPulse})`,
+            opacity: questionOpacity,
+            display: "flex",
+            alignItems: "center",
+            gap: 30,
+          }}
+        >
+          <Img
+            src={staticFile("assets/icons/question_mark.png")}
+            style={{
+              width: 120,
+              height: "auto",
+              filter: `drop-shadow(0 0 ${15 * glowPulse}px rgba(255, 215, 0, 0.6))`,
+            }}
+          />
+          <div
+            style={{
+              fontSize: 72,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 800,
+              color: "#FFD700",
+              textShadow: `${textStroke}, 0 0 25px rgba(255, 215, 0, ${glowPulse})`,
+            }}
+          >
+            얼마나?
+          </div>
+        </div>
+      )}
+
+      {/* 자막 */}
+      {currentCaption && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 40,
+            left: 0,
+            right: 0,
+            textAlign: "center",
+            fontSize: 45,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 600,
+            color: "#000000",
+            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
+            padding: "0 40px",
+            zIndex: 1000,
+          }}
+        >
+          {currentCaption.text}
+        </div>
+      )}
     </AbsoluteFill>
   );
 };

@@ -2,262 +2,333 @@ import React from "react";
 import {
   AbsoluteFill,
   useCurrentFrame,
+  useVideoConfig,
   Img,
   staticFile,
   interpolate,
   Easing,
 } from "remotion";
-import { FONTS } from "../lib/styles";
-import { secondsToFrames } from "../lib/animations";
+
+// 자막용 흰 테두리
+const captionStroke = `
+  -2px -2px 0 #FFF,
+   2px -2px 0 #FFF,
+  -2px  2px 0 #FFF,
+   2px  2px 0 #FFF,
+  -3px  0   0 #FFF,
+   3px  0   0 #FFF,
+   0   -3px 0 #FFF,
+   0    3px 0 #FFF
+`;
+
+// 일반 텍스트용 검은 테두리
+const textStroke = `
+  -2px -2px 0 #000,
+   2px -2px 0 #000,
+  -2px  2px 0 #000,
+   2px  2px 0 #000,
+  -3px  0   0 #000,
+   3px  0   0 #000,
+   0   -3px 0 #000,
+   0    3px 0 #000
+`;
+
+// 자막 데이터 (s9_timed.json - 상대 시간으로 변환)
+const captions = [
+  { text: "현대인 기준으로 계산하면 하루 약 200톤.", start: 0.0, end: 2.44 },
+  { text: "1년이면 7만 톤이 넘습니다.", start: 3.12, end: 5.06 },
+  { text: "그런데 당시 한양에는 마땅한 하수도 시설이 없었습니다.", start: 6.42, end: 9.78 },
+];
 
 export const S9: React.FC = () => {
   const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const currentTime = frame / fps;
 
-  // Step 1: time_range [0, 3.0] - "다른 장수들이 두려움에..."
-  const bgMapOpacity = interpolate(
-    frame,
-    [0, secondsToFrames(0.8)],
-    [0, 0.6],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+  // 현재 자막
+  const currentCaption = captions.find(
+    (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  const portraitDelay = secondsToFrames(0.5);
-  const portraitOpacity = interpolate(
+  // 하루 200톤 카운터
+  const dailyCounterEndFrame = 2 * fps;
+  const dailyProgress = interpolate(
     frame,
-    [portraitDelay, portraitDelay + secondsToFrames(0.9)],
+    [10, dailyCounterEndFrame],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.33, 1, 0.68, 1),
+    }
   );
+  const dailyCount = Math.floor(dailyProgress * 200);
+  const dailyOpacity = interpolate(frame, [0, 15], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
 
-  // Step 2: time_range [3.0, 7.0] - "이순신은 북을 울리며 외쳤습니다"
-  const step2Start = secondsToFrames(3.0);
-
-  const quoteBgOpacity = interpolate(
+  // 연간 7만 톤 카운터 (3.12초부터)
+  const yearlyStartFrame = 3.12 * fps;
+  const yearlyEndFrame = 4.8 * fps;
+  const yearlyProgress = interpolate(
     frame,
-    [step2Start, step2Start + secondsToFrames(0.7)],
-    [0, 0.85],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  const commandDelay = step2Start + secondsToFrames(0.5);
-  const commandOpacity = interpolate(
-    frame,
-    [commandDelay, commandDelay + secondsToFrames(1.0)],
+    [yearlyStartFrame, yearlyEndFrame],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.33, 1, 0.68, 1),
+    }
+  );
+  const yearlyCount = Math.floor(yearlyProgress * 70000);
+  const yearlyOpacity = interpolate(
+    frame,
+    [yearlyStartFrame, yearlyStartFrame + 15],
+    [0, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  );
+  const yearlyScale = interpolate(
+    frame,
+    [yearlyStartFrame, yearlyStartFrame + 20],
+    [0.7, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
+    }
   );
 
-  // Shake portrait
-  const shakeStart = step2Start + secondsToFrames(1.5);
-  const shakeEnd = shakeStart + secondsToFrames(0.5);
-  const shakeOffset = frame >= shakeStart && frame <= shakeEnd
-    ? Math.sin((frame - shakeStart) * 0.6) * 6
+  // 하수도 없음 아이콘 (6.42초부터)
+  const noSewerStartFrame = 6.42 * fps;
+  const noSewerOpacity = interpolate(
+    frame,
+    [noSewerStartFrame, noSewerStartFrame + 20],
+    [0, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  );
+  const noSewerScale = interpolate(
+    frame,
+    [noSewerStartFrame, noSewerStartFrame + 20],
+    [0.5, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
+    }
+  );
+
+  // X 표시 빨간색 글로우
+  const redGlow = interpolate(
+    frame,
+    [noSewerStartFrame + 20, noSewerStartFrame + 40],
+    [0, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  );
+
+  // 경고 펄스
+  const warningPulse = frame >= noSewerStartFrame
+    ? Math.sin((frame - noSewerStartFrame) * 0.15) * 0.3 + 0.7
     : 0;
 
-  // Step 3: time_range [7.0, 11.0] - "그제야 나머지 배들이 합류"
-  const step3Start = secondsToFrames(7.0);
-
-  const fleetAreaOpacity = interpolate(
-    frame,
-    [step3Start, step3Start + secondsToFrames(0.6)],
-    [0, 0.3],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  // 11 ships joining
-  const shipDelays = [0.3, 0.5, 0.7, 0.9, 1.1, 1.3, 1.5, 1.7, 1.9, 2.1, 2.3];
-  const shipPositions = [-550, -440, -330, -220, -110, 0, 110, 220, 330, 440, 550];
-
-  const getShipOpacity = (index: number) => {
-    const delay = step3Start + secondsToFrames(shipDelays[index]);
-    return interpolate(
-      frame,
-      [delay, delay + secondsToFrames(0.3)],
-      [0, 1],
-      { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-    );
-  };
-
-  // Step 4: time_range [11.0, 15.72] - "물살이 바뀌자..."
-  const step4Start = secondsToFrames(11.0);
-
-  const currentArrowOpacity = interpolate(
-    frame,
-    [step4Start, step4Start + secondsToFrames(0.7)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  const tideDelay = step4Start + secondsToFrames(0.5);
-  const tideLabelOpacity = interpolate(
-    frame,
-    [tideDelay, tideDelay + secondsToFrames(0.6)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  // Pulse for current arrow
-  const pulseStart = step4Start + secondsToFrames(1.2);
-  const currentPulse = frame >= pulseStart
-    ? 0.7 + Math.sin(((frame - pulseStart) / secondsToFrames(1.0)) * Math.PI) * 0.15
-    : currentArrowOpacity;
+  // 글로우 펄스
+  const glowPulse = Math.sin(frame * 0.1) * 0.3 + 0.7;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#1a1a2e" }}>
-      {/* Background Map */}
-      <Img
-        src={staticFile("assets/maps/uldolmok_strait.png")}
-        style={{
-          position: "absolute",
-          width: "143%",
-          height: "143%",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          opacity: bgMapOpacity,
-          filter: "sepia(0.4) contrast(1.1) brightness(0.9)",
-          zIndex: -100,
-        }}
-      />
-
-      {/* Yi Portrait (Drum) */}
+    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
+      {/* 하루 200톤 카드 */}
       <div
         style={{
           position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${-600 + shakeOffset}px), -50%) scale(0.45)`,
-          opacity: portraitOpacity,
-          zIndex: 100,
+          left: "12%",
+          top: "22%",
+          opacity: dailyOpacity,
         }}
       >
-        <Img
-          src={staticFile("assets/portraits/yi_sunsin_portrait.png")}
-          style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.4) contrast(1.2)",
-          }}
-        />
-      </div>
-
-      {/* Quote Background */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${250}px), calc(-50% + ${-150}px))`,
-          width: 1100,
-          height: 280,
-          backgroundColor: "#1a1208",
-          opacity: quoteBgOpacity,
-          zIndex: 80,
-        }}
-      />
-
-      {/* Famous Command */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${250}px), calc(-50% + ${-150}px))`,
-          opacity: commandOpacity,
-          fontSize: 65,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4443f",
-          textAlign: "center",
-          lineHeight: 1.5,
-          textShadow: "3px 3px 0 #2a1810",
-          WebkitTextStroke: "3px #2a1810",
-          whiteSpace: "pre-line",
-          zIndex: 150,
-        }}
-      >
-        {`항오를 어지럽히는 자는\n군법으로 다스리겠다`}
-      </div>
-
-      {/* Fleet Joining Area */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${300}px))`,
-          width: 1400,
-          height: 150,
-          backgroundColor: "#2a4a6a",
-          opacity: fleetAreaOpacity,
-          zIndex: 20,
-        }}
-      />
-
-      {/* 11 Ships Joining */}
-      {shipPositions.map((x, index) => (
         <div
-          key={index}
+          style={{
+            background: "linear-gradient(135deg, rgba(139, 69, 19, 0.95) 0%, rgba(101, 50, 10, 0.95) 100%)",
+            padding: "30px 45px",
+            borderRadius: 20,
+            border: "3px solid #D4AF37",
+            boxShadow: `0 8px 30px rgba(0, 0, 0, 0.5), 0 0 ${15 * glowPulse}px rgba(212, 175, 55, 0.3)`,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 32,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 500,
+              color: "#F5E6C8",
+              marginBottom: 12,
+              textAlign: "center",
+            }}
+          >
+            하루 배출량
+          </div>
+          <div
+            style={{
+              fontSize: 88,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 800,
+              color: "#FFD700",
+              textAlign: "center",
+              textShadow: `0 0 20px rgba(255, 215, 0, ${glowPulse})`,
+            }}
+          >
+            {dailyCount}톤
+          </div>
+        </div>
+      </div>
+
+      {/* 연간 7만 톤 카드 */}
+      {frame >= yearlyStartFrame && (
+        <div
           style={{
             position: "absolute",
+            right: "12%",
+            top: "22%",
+            opacity: yearlyOpacity,
+            transform: `scale(${yearlyScale})`,
+          }}
+        >
+          <div
+            style={{
+              background: "linear-gradient(135deg, rgba(229, 57, 53, 0.95) 0%, rgba(180, 40, 40, 0.95) 100%)",
+              padding: "30px 45px",
+              borderRadius: 20,
+              border: "3px solid #FFD700",
+              boxShadow: `0 8px 30px rgba(229, 57, 53, 0.5), 0 0 ${20 * glowPulse}px rgba(229, 57, 53, 0.4)`,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 32,
+                fontFamily: "Pretendard, sans-serif",
+                fontWeight: 500,
+                color: "#FFFFFF",
+                marginBottom: 12,
+                textAlign: "center",
+              }}
+            >
+              1년 배출량
+            </div>
+            <div
+              style={{
+                fontSize: 88,
+                fontFamily: "Pretendard, sans-serif",
+                fontWeight: 800,
+                color: "#FFFFFF",
+                textAlign: "center",
+                textShadow: "0 0 25px rgba(255, 255, 255, 0.6)",
+              }}
+            >
+              {yearlyCount.toLocaleString()}톤
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 화살표 (하루 → 연간) */}
+      {frame >= yearlyStartFrame && (
+        <div
+          style={{
+            position: "absolute",
+            top: "32%",
             left: "50%",
-            top: "50%",
-            transform: `translate(calc(-50% + ${x}px), calc(-50% + ${300}px)) scale(0.08)`,
-            opacity: getShipOpacity(index),
-            zIndex: 50,
+            transform: "translate(-50%, -50%)",
+            opacity: yearlyOpacity,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 64,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 800,
+              color: "#FFD700",
+              textShadow: `${textStroke}, 0 0 15px rgba(255, 215, 0, ${glowPulse})`,
+            }}
+          >
+            x 365
+          </div>
+        </div>
+      )}
+
+      {/* 하수도 없음 아이콘 + 경고 텍스트 */}
+      {frame >= noSewerStartFrame && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: "26%",
+            left: "50%",
+            transform: `translate(-50%, 0) scale(${noSewerScale})`,
+            opacity: noSewerOpacity,
+            display: "flex",
+            alignItems: "center",
+            gap: 35,
           }}
         >
           <Img
-            src={staticFile("assets/icons/ship_icon_joseon.png")}
+            src={staticFile("assets/icons/no_sewer.png")}
             style={{
-              width: 1024,
-              height: 1024,
-              filter: "sepia(0.3)",
+              width: 160,
+              height: "auto",
+              filter: `drop-shadow(0 0 ${15 * warningPulse}px rgba(229, 57, 53, 0.7))`,
             }}
           />
+          <div
+            style={{
+              background: `rgba(229, 57, 53, ${0.85 + redGlow * 0.1})`,
+              padding: "18px 35px",
+              borderRadius: 15,
+              border: "3px solid #FFFFFF",
+              boxShadow: `0 0 ${25 * warningPulse}px rgba(229, 57, 53, 0.7)`,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 48,
+                fontFamily: "Pretendard, sans-serif",
+                fontWeight: 800,
+                color: "#FFFFFF",
+              }}
+            >
+              하수도 시설 없음!
+            </div>
+          </div>
         </div>
-      ))}
+      )}
 
-      {/* Current Arrow Change */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${600}px), calc(-50% + ${80}px)) scale(0.2) rotate(180deg)`,
-          opacity: frame >= pulseStart ? currentPulse : currentArrowOpacity,
-          zIndex: 60,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/current_arrow.png")}
+      {/* 자막 */}
+      {currentCaption && (
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.3) hue-rotate(200deg)",
+            position: "absolute",
+            bottom: 40,
+            left: 0,
+            right: 0,
+            textAlign: "center",
+            fontSize: 45,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 600,
+            color: "#000000",
+            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
+            padding: "0 40px",
+            zIndex: 1000,
           }}
-        />
-      </div>
-
-      {/* Tide Label */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${600}px), calc(-50% + ${180}px))`,
-          opacity: tideLabelOpacity,
-          fontSize: 50,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#4a9eff",
-          textShadow: "2px 2px 0 #2a1810",
-          WebkitTextStroke: "2px #2a1810",
-          zIndex: 100,
-        }}
-      >
-        물살 변화
-      </div>
+        >
+          {currentCaption.text}
+        </div>
+      )}
     </AbsoluteFill>
   );
 };

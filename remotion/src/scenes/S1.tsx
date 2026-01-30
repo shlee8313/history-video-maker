@@ -2,310 +2,220 @@ import React from "react";
 import {
   AbsoluteFill,
   useCurrentFrame,
-  Img,
-  staticFile,
+  useVideoConfig,
   interpolate,
   Easing,
 } from "remotion";
-import { FONTS, COLORS } from "../lib/styles";
-import { secondsToFrames } from "../lib/animations";
 
-const FPS = 30;
+// 자막용 흰 테두리
+const captionStroke = `
+  -2px -2px 0 #FFF,
+   2px -2px 0 #FFF,
+  -2px  2px 0 #FFF,
+   2px  2px 0 #FFF,
+  -3px  0   0 #FFF,
+   3px  0   0 #FFF,
+   0   -3px 0 #FFF,
+   0    3px 0 #FFF
+`;
+
+// 일반 텍스트용 검은 테두리
+const textStroke = `
+  -2px -2px 0 #000,
+   2px -2px 0 #000,
+  -2px  2px 0 #000,
+   2px  2px 0 #000,
+  -3px  0   0 #000,
+   3px  0   0 #000,
+   0   -3px 0 #000,
+   0    3px 0 #000
+`;
+
+// 자막 데이터 (s1_timed.json)
+const captions = [
+  { text: "여러분, 오늘날 서울 강남 땅 부러우시죠?", start: 0.0, end: 2.52 },
+  { text: "압구정, 청담, 도곡동...", start: 3.08, end: 4.92 },
+  { text: "평당 1억이 넘는 금싸라기 땅.", start: 5.52, end: 7.62 },
+];
+
+// 지역명 데이터
+const districts = ["압구정", "청담", "도곡동"];
 
 export const S1: React.FC = () => {
   const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const currentTime = frame / fps;
 
-  // Step 1: time_range [0, 2.5] - "열두 척 대 백서른셋 척"
-  // bg_map fadeIn
-  const bgMapOpacity = interpolate(
-    frame,
-    [0, secondsToFrames(1.0)],
-    [0, 0.6],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+  // 현재 자막
+  const currentCaption = captions.find(
+    (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  // ship_joseon popUp (delay 0.8, duration 0.5)
-  const shipJoseonDelay = secondsToFrames(0.8);
-  const shipJoseonScale = interpolate(
+  // 카메라 줌 효과
+  const zoom = interpolate(frame, [0, durationInFrames], [1, 1.08], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.33, 1, 0.68, 1),
+  });
+
+  // 지역명 타이프라이터 효과 (3.08초부터 시작)
+  const districtStartFrame = 3.08 * fps;
+  const districtShowDuration = 0.5 * fps;
+
+  // 금액 카운트업 효과 (5.52초부터 시작)
+  const priceStartFrame = 5.52 * fps;
+  const priceEndFrame = 7.2 * fps;
+  const priceProgress = interpolate(
     frame,
-    [shipJoseonDelay, shipJoseonDelay + secondsToFrames(0.5)],
-    [0, 0.18],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5)) }
-  );
-  const shipJoseonOpacity = interpolate(
-    frame,
-    [shipJoseonDelay, shipJoseonDelay + secondsToFrames(0.5)],
+    [priceStartFrame, priceEndFrame],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.33, 1, 0.68, 1),
+    }
   );
+  const displayPrice = Math.floor(priceProgress * 10000);
 
-  // number_12 popUp (delay 1.0, duration 0.5)
-  const number12Delay = secondsToFrames(1.0);
-  const number12Scale = interpolate(
+  // 금액 글로우 효과
+  const priceGlow = interpolate(
     frame,
-    [number12Delay, number12Delay + secondsToFrames(0.5)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5)) }
+    [priceStartFrame, priceStartFrame + 30, priceEndFrame],
+    [0, 1, 0.7],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
   );
-  const number12Opacity = interpolate(
-    frame,
-    [number12Delay, number12Delay + secondsToFrames(0.5)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-
-  // ship_japan popUp (delay 1.5, duration 0.5)
-  const shipJapanDelay = secondsToFrames(1.5);
-  const shipJapanScale = interpolate(
-    frame,
-    [shipJapanDelay, shipJapanDelay + secondsToFrames(0.5)],
-    [0, 0.18],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5)) }
-  );
-  const shipJapanOpacity = interpolate(
-    frame,
-    [shipJapanDelay, shipJapanDelay + secondsToFrames(0.5)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-
-  // number_133 popUp (delay 1.7, duration 0.5)
-  const number133Delay = secondsToFrames(1.7);
-  const number133Scale = interpolate(
-    frame,
-    [number133Delay, number133Delay + secondsToFrames(0.5)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5)) }
-  );
-  const number133Opacity = interpolate(
-    frame,
-    [number133Delay, number133Delay + secondsToFrames(0.5)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-
-  // Step 2: time_range [2.5, 5.0] - "이 말도 안 되는 숫자 앞에서"
-  const step2Start = secondsToFrames(2.5);
-
-  // vs_symbol fadeIn (delay 0)
-  const vsOpacity = interpolate(
-    frame,
-    [step2Start, step2Start + secondsToFrames(0.6)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  // shake effect for numbers (delay 0.5, duration 0.4)
-  const shakeStart = step2Start + secondsToFrames(0.5);
-  const shakeEnd = shakeStart + secondsToFrames(0.4);
-  const shakeIntensity = 8;
-  const shakeOffset = frame >= shakeStart && frame <= shakeEnd
-    ? Math.sin((frame - shakeStart) * 0.5) * shakeIntensity
-    : 0;
-
-  // Step 3: time_range [5.0, 7.5] - "한 남자는 도망치지 않았습니다"
-  const step3Start = secondsToFrames(5.0);
-
-  // yi_silhouette fadeIn + move
-  const yiSilhouetteOpacity = interpolate(
-    frame,
-    [step3Start, step3Start + secondsToFrames(0.8)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-  const yiSilhouetteY = interpolate(
-    frame,
-    [step3Start, step3Start + secondsToFrames(0.8)],
-    [200, 150],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  // Step 4: time_range [7.5, 9.28] - "그는 대체 무엇을 믿고 있었던 걸까요"
-  const step4Start = secondsToFrames(7.5);
-
-  // question_mark popUp + pulse
-  const questionScale = interpolate(
-    frame,
-    [step4Start, step4Start + secondsToFrames(0.5)],
-    [0, 0.12],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5)) }
-  );
-  const questionOpacity = interpolate(
-    frame,
-    [step4Start, step4Start + secondsToFrames(0.5)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-
-  // Pulse effect (delay 0.6, duration 0.8)
-  const pulseStart = step4Start + secondsToFrames(0.6);
-  const pulseProgress = frame >= pulseStart
-    ? Math.sin(((frame - pulseStart) / secondsToFrames(0.8)) * Math.PI) * 0.02
-    : 0;
-  const finalQuestionScale = questionScale + (questionScale > 0 ? pulseProgress : 0);
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#1a1a2e" }}>
-      {/* Background Map */}
-      <Img
-        src={staticFile("assets/maps/joseon_south_sea.png")}
-        style={{
-          position: "absolute",
-          width: "143%",
-          height: "143%",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          opacity: bgMapOpacity,
-          filter: "sepia(0.4) contrast(1.1) brightness(0.95)",
-          zIndex: -100,
-        }}
-      />
-
-      {/* Ship Joseon */}
+    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
+      {/* 카메라 줌 컨테이너 */}
       <div
         style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${-400}px), calc(-50% + ${50}px)) scale(${shipJoseonScale})`,
-          opacity: shipJoseonOpacity,
-          zIndex: 50,
+          width: "100%",
+          height: "100%",
+          transform: `scale(${zoom})`,
+          transformOrigin: "center center",
         }}
       >
-        <Img
-          src={staticFile("assets/icons/ship_icon_joseon.png")}
+        {/* 지역명 표시 (중앙 상단) */}
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.3)",
+            position: "absolute",
+            top: "25%",
+            left: 0,
+            right: 0,
+            display: "flex",
+            justifyContent: "center",
+            gap: 60,
           }}
-        />
+        >
+          {districts.map((district, index) => {
+            const showFrame = districtStartFrame + index * districtShowDuration;
+            const opacity = interpolate(
+              frame,
+              [showFrame, showFrame + 10],
+              [0, 1],
+              {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+              }
+            );
+            const translateY = interpolate(
+              frame,
+              [showFrame, showFrame + 10],
+              [20, 0],
+              {
+                extrapolateLeft: "clamp",
+                extrapolateRight: "clamp",
+                easing: Easing.bezier(0.33, 1, 0.68, 1),
+              }
+            );
+
+            return (
+              <div
+                key={district}
+                style={{
+                  fontSize: 72,
+                  fontFamily: "Pretendard, sans-serif",
+                  fontWeight: 700,
+                  color: "#FFFFFF",
+                  textShadow: `${textStroke}, 0 4px 20px rgba(255, 215, 0, 0.5)`,
+                  opacity,
+                  transform: `translateY(${translateY}px)`,
+                }}
+              >
+                {district}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* 금액 표시 (중앙) */}
+        {frame >= priceStartFrame && (
+          <div
+            style={{
+              position: "absolute",
+              top: "45%",
+              left: 0,
+              right: 0,
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 120,
+                fontFamily: "Pretendard, sans-serif",
+                fontWeight: 800,
+                color: "#FFD700",
+                textShadow: `
+                  ${textStroke},
+                  0 0 ${30 * priceGlow}px rgba(255, 215, 0, 0.8),
+                  0 0 ${60 * priceGlow}px rgba(255, 215, 0, 0.5)
+                `,
+              }}
+            >
+              평당 {displayPrice.toLocaleString()}만원
+            </div>
+            <div
+              style={{
+                fontSize: 48,
+                fontFamily: "Pretendard, sans-serif",
+                fontWeight: 600,
+                color: "#FFFFFF",
+                textShadow: textStroke,
+                marginTop: 10,
+                opacity: priceProgress,
+              }}
+            >
+              = 1억원 이상
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Number 12 */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${-400 + shakeOffset}px), calc(-50% + ${-50}px)) scale(${number12Scale})`,
-          opacity: number12Opacity,
-          fontSize: 140,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4443f",
-          textShadow: "4px 4px 0 #2a1810",
-          WebkitTextStroke: "4px #2a1810",
-          zIndex: 100,
-        }}
-      >
-        12
-      </div>
-
-      {/* Ship Japan */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${400}px), calc(-50% + ${50}px)) scale(${shipJapanScale})`,
-          opacity: shipJapanOpacity,
-          zIndex: 50,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/ship_icon_japan.png")}
+      {/* 자막 */}
+      {currentCaption && (
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.3)",
+            position: "absolute",
+            bottom: 40,
+            left: 0,
+            right: 0,
+            textAlign: "center",
+            fontSize: 45,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 600,
+            color: "#000000",
+            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
+            padding: "0 40px",
+            zIndex: 1000,
           }}
-        />
-      </div>
-
-      {/* Number 133 */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${400 + shakeOffset}px), calc(-50% + ${-50}px)) scale(${number133Scale})`,
-          opacity: number133Opacity,
-          fontSize: 140,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#1a1a1a",
-          textShadow: "4px 4px 0 #4a4a4a",
-          WebkitTextStroke: "4px #4a4a4a",
-          zIndex: 100,
-        }}
-      >
-        133
-      </div>
-
-      {/* VS Symbol */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${-50}px)) scale(0.15)`,
-          opacity: vsOpacity,
-          zIndex: 75,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/vs_symbol.png")}
-          style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.4)",
-          }}
-        />
-      </div>
-
-      {/* Yi Sun-sin Silhouette */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${yiSilhouetteY}px)) scale(0.3)`,
-          opacity: yiSilhouetteOpacity,
-          zIndex: 100,
-        }}
-      >
-        <Img
-          src={staticFile("assets/portraits/yi_sun_sin_silhouette.png")}
-          style={{
-            width: 768,
-            height: 1344,
-            filter: "sepia(0.5) brightness(0.3)",
-          }}
-        />
-      </div>
-
-      {/* Question Mark */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${-250}px)) scale(${finalQuestionScale})`,
-          opacity: questionOpacity,
-          zIndex: 200,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/question_mark_antique.png")}
-          style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.4)",
-          }}
-        />
-      </div>
+        >
+          {currentCaption.text}
+        </div>
+      )}
     </AbsoluteFill>
   );
 };

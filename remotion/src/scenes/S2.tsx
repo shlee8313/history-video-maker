@@ -2,214 +2,237 @@ import React from "react";
 import {
   AbsoluteFill,
   useCurrentFrame,
+  useVideoConfig,
   Img,
   staticFile,
   interpolate,
   Easing,
 } from "remotion";
-import { FONTS } from "../lib/styles";
-import { secondsToFrames } from "../lib/animations";
+
+// 자막용 흰 테두리
+const captionStroke = `
+  -2px -2px 0 #FFF,
+   2px -2px 0 #FFF,
+  -2px  2px 0 #FFF,
+   2px  2px 0 #FFF,
+  -3px  0   0 #FFF,
+   3px  0   0 #FFF,
+   0   -3px 0 #FFF,
+   0    3px 0 #FFF
+`;
+
+// 일반 텍스트용 검은 테두리
+const textStroke = `
+  -2px -2px 0 #000,
+   2px -2px 0 #000,
+  -2px  2px 0 #000,
+   2px  2px 0 #000,
+  -3px  0   0 #000,
+   3px  0   0 #000,
+   0   -3px 0 #000,
+   0    3px 0 #000
+`;
+
+// 자막 데이터 (s2_timed.json - 상대 시간으로 변환)
+// 원본: scene_start: 7.78s
+const captions = [
+  { text: "그런데 조선시대에도", start: 0.0, end: 1.52 },
+  { text: "한양의 노른자 땅을 쓸어 담은 사람들이 있었습니다.", start: 1.52, end: 4.38 },
+  { text: "놀라운 건, 그들의 직업이었죠.", start: 4.52, end: 6.82 },
+];
 
 export const S2: React.FC = () => {
   const frame = useCurrentFrame();
+  const { fps, durationInFrames } = useVideoConfig();
+  const currentTime = frame / fps;
 
-  // Step 1: time_range [0, 2.5] - "1597년, 조선 수군은 사실상 전멸 상태였습니다"
-  const bgMapOpacity = interpolate(
-    frame,
-    [0, secondsToFrames(0.8)],
-    [0, 0.5],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+  // 현재 자막
+  const currentCaption = captions.find(
+    (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  const yearDelay = secondsToFrames(0.3);
-  const yearOpacity = interpolate(
+  // 지도 fadeIn + 줌
+  const mapOpacity = interpolate(frame, [0, 20], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  const mapZoom = interpolate(frame, [0, durationInFrames], [1.1, 1.2], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.33, 1, 0.68, 1),
+  });
+
+  // 황금빛 하이라이트 펄스 효과
+  const pulseStartFrame = 30;
+  const highlightOpacity = interpolate(
     frame,
-    [yearDelay, yearDelay + secondsToFrames(0.6)],
+    [pulseStartFrame, pulseStartFrame + 15],
+    [0, 0.6],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  );
+
+  const highlightPulse = frame >= pulseStartFrame + 15
+    ? 0.6 + Math.sin((frame - pulseStartFrame - 15) * 0.15) * 0.2
+    : highlightOpacity;
+
+  // 물음표 popUp (4.52초부터)
+  const questionStartFrame = 4.52 * fps;
+  const questionScale = interpolate(
+    frame,
+    [questionStartFrame, questionStartFrame + 15],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
+    }
   );
-
-  const burningDelay = secondsToFrames(0.8);
-  const burningOpacity = interpolate(
+  const questionOpacity = interpolate(
     frame,
-    [burningDelay, burningDelay + secondsToFrames(1.0)],
-    [0, 0.8],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  // Step 2: time_range [2.5, 5.5] - "칠천량 해전에서..."
-  const step2Start = secondsToFrames(2.5);
-
-  const locationOpacity = interpolate(
-    frame,
-    [step2Start, step2Start + secondsToFrames(0.7)],
-    [0, 0.9],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  const sinkingDelay = step2Start + secondsToFrames(0.5);
-  const sinkingOpacity = interpolate(
-    frame,
-    [sinkingDelay, sinkingDelay + secondsToFrames(0.8)],
-    [0, 0.9],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-  const sinkingY = interpolate(
-    frame,
-    [sinkingDelay, sinkingDelay + secondsToFrames(1.5)],
-    [50, 80],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.in(Easing.cubic) }
-  );
-
-  // Step 3: time_range [5.5, 11.2] - "전함 백오십여 척이..."
-  const step3Start = secondsToFrames(5.5);
-
-  const countScale = interpolate(
-    frame,
-    [step3Start, step3Start + secondsToFrames(0.6)],
+    [questionStartFrame, questionStartFrame + 10],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5)) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
   );
-  const countOpacity = interpolate(
+
+  // 노른자 땅 텍스트 등장
+  const goldenTextOpacity = interpolate(
     frame,
-    [step3Start, step3Start + secondsToFrames(0.6)],
+    [15, 30],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
   );
-
-  // Shake effect
-  const shakeStart = step3Start + secondsToFrames(0.7);
-  const shakeEnd = shakeStart + secondsToFrames(0.5);
-  const shakeOffset = frame >= shakeStart && frame <= shakeEnd
-    ? Math.sin((frame - shakeStart) * 0.5) * 10
-    : 0;
-
-  // Pulse for burning ships
-  const pulseStart = step3Start + secondsToFrames(1.0);
-  const pulseCycle = secondsToFrames(2.0);
-  const pulseValue = frame >= pulseStart
-    ? 0.8 + Math.sin(((frame - pulseStart) / pulseCycle) * Math.PI * 2) * 0.1
-    : burningOpacity;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#1a1a2e" }}>
-      {/* Background Map */}
-      <Img
-        src={staticFile("assets/maps/joseon_south_sea.png")}
+    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
+      {/* 한양 지도 */}
+      <div
         style={{
           position: "absolute",
-          width: "143%",
-          height: "143%",
-          left: "50%",
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          transform: `scale(${mapZoom})`,
+          transformOrigin: "center center",
+        }}
+      >
+        <Img
+          src={staticFile("assets/maps/hanyang.png")}
+          style={{
+            width: 700,
+            height: 700,
+            opacity: mapOpacity,
+            filter: "sepia(0.4) contrast(1.1)",
+          }}
+        />
+      </div>
+
+      {/* 황금빛 하이라이트 효과 */}
+      <div
+        style={{
+          position: "absolute",
           top: "50%",
+          left: "50%",
           transform: "translate(-50%, -50%)",
-          opacity: bgMapOpacity,
-          filter: "sepia(0.4) contrast(1.1) brightness(0.85)",
-          zIndex: -100,
+          width: 400,
+          height: 400,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(255,215,0,0.4) 0%, rgba(255,215,0,0) 70%)",
+          opacity: highlightPulse,
         }}
       />
 
-      {/* Burning Ships Background */}
+      {/* 노른자 땅 텍스트 */}
       <div
         style={{
           position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%) scale(1.15)",
-          opacity: frame >= pulseStart ? pulseValue : burningOpacity,
-          zIndex: 0,
+          top: "28%",
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontSize: 84,
+          fontFamily: "Pretendard, sans-serif",
+          fontWeight: 800,
+          color: "#FFD700",
+          textShadow: `${textStroke}, 0 4px 30px rgba(255, 215, 0, 0.8)`,
+          opacity: goldenTextOpacity,
         }}
       >
-        <Img
-          src={staticFile("assets/backgrounds/fire_arrows.png")}
+        노른자 땅
+      </div>
+
+      {/* 물음표 아이콘 */}
+      {frame >= questionStartFrame && (
+        <div
           style={{
-            width: 1344,
-            height: 768,
-            filter: "sepia(0.5) contrast(1.2) brightness(0.9)",
+            position: "absolute",
+            right: "15%",
+            top: "35%",
+            transform: `scale(${questionScale})`,
+            opacity: questionOpacity,
           }}
-        />
-      </div>
+        >
+          <Img
+            src={staticFile("assets/icons/question_mark.png")}
+            style={{
+              width: 150,
+              height: 220,
+            }}
+          />
+        </div>
+      )}
 
-      {/* Year Display */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${-700}px), calc(-50% + ${-420}px))`,
-          opacity: yearOpacity,
-          fontSize: 80,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4af37",
-          textShadow: "3px 3px 0 #2a1810",
-          WebkitTextStroke: "3px #2a1810",
-          zIndex: 200,
-        }}
-      >
-        1597
-      </div>
-
-      {/* Sinking Ships Icon */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${sinkingY}px)) scale(0.4)`,
-          opacity: sinkingOpacity,
-          zIndex: 50,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/sinking_ships.png")}
+      {/* 직업? 텍스트 */}
+      {frame >= questionStartFrame && (
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.4) brightness(0.8)",
+            position: "absolute",
+            right: "14%",
+            top: "60%",
+            fontSize: 56,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 700,
+            color: "#FFFFFF",
+            textShadow: textStroke,
+            opacity: questionOpacity,
           }}
-        />
-      </div>
+        >
+          직업 = ?
+        </div>
+      )}
 
-      {/* Ship Count */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${shakeOffset}px), calc(-50% + ${-150}px)) scale(${countScale})`,
-          opacity: countOpacity,
-          fontSize: 100,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4443f",
-          textShadow: "4px 4px 0 #2a1810",
-          WebkitTextStroke: "4px #2a1810",
-          zIndex: 100,
-        }}
-      >
-        150척
-      </div>
-
-      {/* Location Label */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${360}px))`,
-          opacity: locationOpacity,
-          fontSize: 60,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "normal",
-          color: "#e8d5b7",
-          textShadow: "2px 2px 0 #2a1810",
-          WebkitTextStroke: "2px #2a1810",
-          zIndex: 200,
-        }}
-      >
-        칠천량
-      </div>
+      {/* 자막 */}
+      {currentCaption && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 40,
+            left: 0,
+            right: 0,
+            textAlign: "center",
+            fontSize: 45,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 600,
+            color: "#000000",
+            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
+            padding: "0 40px",
+            zIndex: 1000,
+          }}
+        >
+          {currentCaption.text}
+        </div>
+      )}
     </AbsoluteFill>
   );
 };

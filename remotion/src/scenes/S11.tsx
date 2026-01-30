@@ -2,280 +2,338 @@ import React from "react";
 import {
   AbsoluteFill,
   useCurrentFrame,
-  Img,
-  staticFile,
+  useVideoConfig,
   interpolate,
   Easing,
 } from "remotion";
-import { FONTS } from "../lib/styles";
-import { secondsToFrames } from "../lib/animations";
+
+// 자막용 흰 테두리
+const captionStroke = `
+  -2px -2px 0 #FFF,
+   2px -2px 0 #FFF,
+  -2px  2px 0 #FFF,
+   2px  2px 0 #FFF,
+  -3px  0   0 #FFF,
+   3px  0   0 #FFF,
+   0   -3px 0 #FFF,
+   0    3px 0 #FFF
+`;
+
+// 자막 데이터 (s11_timed.json - scene_start 9.30을 0으로 변환)
+const captions = [
+  { text: "당시 법률을 보면 놀라운 조항이 있습니다.", start: 0.0, end: 2.18 },
+  { text: "\"재를 버리는 자는 곤장 30대에 처하고,", start: 3.10, end: 5.68 },
+  { text: "똥을 버리는 자는 곤장 50대에 처한다.\"", start: 6.36, end: 8.90 },
+  { text: "재를 버려도 곤장 30대인데, 똥을 버리면 50대입니다.", start: 9.68, end: 13.88 },
+  { text: "똥이 재보다 20대나 더 귀하다는 뜻이죠.", start: 14.66, end: 17.18 },
+];
 
 export const S11: React.FC = () => {
   const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const currentTime = frame / fps;
 
-  // Step 1: time_range [0, 3.0] - "명량해전은 단순한 승리가 아닙니다"
-  const bgMapOpacity = interpolate(
-    frame,
-    [0, secondsToFrames(0.8)],
-    [0, 0.6],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+  // 현재 자막
+  const currentCaption = captions.find(
+    (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  const titleDelay = secondsToFrames(0.6);
-  const titleOpacity = interpolate(
+  // 법전 두루마리 배경 펼쳐지는 효과
+  const scrollUnroll = interpolate(frame, [0, 40], [0.3, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.33, 1, 0.68, 1),
+  });
+  const scrollOpacity = interpolate(frame, [0, 20], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  // 곤장 아이콘 흔들림 효과
+  const gonjangSwing = Math.sin(frame * 0.2) * 5;
+
+  // 재 30대 카운터 (3.1초부터)
+  const ashStartFrame = 3.1 * fps;
+  const ashCounterProgress = interpolate(
     frame,
-    [titleDelay, titleDelay + secondsToFrames(0.9)],
+    [ashStartFrame, ashStartFrame + 30],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.33, 1, 0.68, 1),
+    }
   );
-  const titleY = interpolate(
+  const ashCount = Math.floor(ashCounterProgress * 30);
+  const ashOpacity = interpolate(
     frame,
-    [titleDelay, titleDelay + secondsToFrames(0.9)],
-    [-400, -350],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  // Step 2: time_range [3.0, 5.5] - "이것은 리더십의 교과서입니다"
-  const step2Start = secondsToFrames(3.0);
-
-  const analysisBgOpacity = interpolate(
-    frame,
-    [step2Start, step2Start + secondsToFrames(0.7)],
-    [0, 0.8],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  // Pulse for title
-  const titlePulseStart = step2Start + secondsToFrames(0.5);
-  const titlePulseScale = frame >= titlePulseStart
-    ? 1 + Math.sin(((frame - titlePulseStart) / secondsToFrames(1.0)) * Math.PI) * 0.025
-    : 1;
-
-  // Step 3: time_range [5.5, 9.48] - "이순신은 적의 숫자가 아니라..."
-  const step3Start = secondsToFrames(5.5);
-
-  const insight1Opacity = interpolate(
-    frame,
-    [step3Start, step3Start + secondsToFrames(0.7)],
+    [ashStartFrame, ashStartFrame + 15],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
   );
 
-  const insight2Delay = step3Start + secondsToFrames(0.6);
-  const insight2Opacity = interpolate(
+  // 똥 50대 카운터 (6.36초부터)
+  const wasteStartFrame = 6.36 * fps;
+  const wasteCounterProgress = interpolate(
     frame,
-    [insight2Delay, insight2Delay + secondsToFrames(0.8)],
+    [wasteStartFrame, wasteStartFrame + 40],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.33, 1, 0.68, 1),
+    }
+  );
+  const wasteCount = Math.floor(wasteCounterProgress * 50);
+  const wasteOpacity = interpolate(
+    frame,
+    [wasteStartFrame, wasteStartFrame + 15],
+    [0, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  );
+  const wasteScale = interpolate(
+    frame,
+    [wasteStartFrame, wasteStartFrame + 20],
+    [0.7, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
+    }
   );
 
-  const icon1Delay = step3Start + secondsToFrames(1.2);
-  const icon1Opacity = interpolate(
+  // 비교 강조 (14.66초부터)
+  const comparisonStartFrame = 14.66 * fps;
+  const comparisonOpacity = interpolate(
     frame,
-    [icon1Delay, icon1Delay + secondsToFrames(0.5)],
+    [comparisonStartFrame, comparisonStartFrame + 20],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  );
+  const comparisonScale = interpolate(
+    frame,
+    [comparisonStartFrame, comparisonStartFrame + 25],
+    [0.5, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
+    }
   );
 
-  const icon2Delay = step3Start + secondsToFrames(1.4);
-  const icon2Opacity = interpolate(
-    frame,
-    [icon2Delay, icon2Delay + secondsToFrames(0.5)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  const widthDelay = step3Start + secondsToFrames(1.8);
-  const widthOpacity = interpolate(
-    frame,
-    [widthDelay, widthDelay + secondsToFrames(0.6)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  const calcDelay = step3Start + secondsToFrames(2.2);
-  const calcOpacity = interpolate(
-    frame,
-    [calcDelay, calcDelay + secondsToFrames(0.5)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
+  // 글로우 펄스
+  const glowPulse = Math.sin(frame * 0.1) * 0.3 + 0.7;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#1a1a2e" }}>
-      {/* Background Map */}
-      <Img
-        src={staticFile("assets/maps/jindo_uldolmok_map.png")}
-        style={{
-          position: "absolute",
-          width: "143%",
-          height: "143%",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          opacity: bgMapOpacity,
-          filter: "sepia(0.45) contrast(1.1) brightness(0.95)",
-          zIndex: -100,
-        }}
-      />
-
-      {/* Title Main */}
+    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
+      {/* 법전 두루마리 스타일 배경 패널 */}
       <div
         style={{
           position: "absolute",
+          top: "12%",
           left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${titleY}px)) scale(${titlePulseScale})`,
-          opacity: titleOpacity,
-          fontSize: 95,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4af37",
-          textShadow: "5px 5px 0 #2a1810",
-          WebkitTextStroke: "5px #2a1810",
-          zIndex: 200,
+          transform: `translateX(-50%) scaleY(${scrollUnroll})`,
+          transformOrigin: "top center",
+          opacity: scrollOpacity,
+          width: "85%",
+          background: "linear-gradient(180deg, rgba(245, 230, 200, 0.95) 0%, rgba(220, 195, 155, 0.95) 100%)",
+          borderRadius: 15,
+          padding: "25px 40px",
+          border: "4px solid #8B4513",
+          boxShadow: "0 10px 40px rgba(0, 0, 0, 0.4), inset 0 0 30px rgba(139, 69, 19, 0.1)",
         }}
       >
-        리더십의 교과서
-      </div>
-
-      {/* Terrain Analysis Background */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${50}px))`,
-          width: 1200,
-          height: 400,
-          backgroundColor: "#1a1208",
-          opacity: analysisBgOpacity,
-          zIndex: 20,
-        }}
-      />
-
-      {/* Insight Text 1 */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${-50}px))`,
-          opacity: insight1Opacity,
-          fontSize: 65,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "normal",
-          color: "#e8d5b7",
-          textShadow: "2px 2px 0 #2a1810",
-          WebkitTextStroke: "2px #2a1810",
-          zIndex: 100,
-        }}
-      >
-        적의 숫자가 아니라
-      </div>
-
-      {/* Insight Text 2 */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${50}px))`,
-          opacity: insight2Opacity,
-          fontSize: 75,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4443f",
-          textShadow: "4px 4px 0 #2a1810",
-          WebkitTextStroke: "4px #2a1810",
-          zIndex: 100,
-        }}
-      >
-        지형을 읽었다
-      </div>
-
-      {/* Terrain Icon 1 (Waves) */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${-450}px), calc(-50% + ${50}px)) scale(0.15)`,
-          opacity: icon1Opacity,
-          zIndex: 50,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/current_waves.png")}
+        {/* 법전 제목 */}
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.3) brightness(1.1)",
+            fontSize: 38,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 700,
+            color: "#5D3A1A",
+            textAlign: "center",
+            marginBottom: 20,
+            borderBottom: "2px solid #8B4513",
+            paddingBottom: 15,
           }}
-        />
-      </div>
+        >
+          조선시대 법률
+        </div>
 
-      {/* Terrain Icon 2 (Arrow) */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${450}px), calc(-50% + ${50}px)) scale(0.15) rotate(90deg)`,
-          opacity: icon2Opacity,
-          zIndex: 50,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/current_arrow.png")}
+        {/* 법률 내용 */}
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.3) brightness(1.1)",
+            display: "flex",
+            justifyContent: "space-around",
+            alignItems: "center",
+            marginTop: 20,
           }}
-        />
+        >
+          {/* 재 버리기 - 30대 */}
+          <div
+            style={{
+              opacity: ashOpacity,
+              textAlign: "center",
+              flex: 1,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 32,
+                fontFamily: "Pretendard, sans-serif",
+                fontWeight: 600,
+                color: "#5D3A1A",
+                marginBottom: 15,
+              }}
+            >
+              재를 버리는 자
+            </div>
+            <div
+              style={{
+                fontSize: 80,
+                fontFamily: "Pretendard, sans-serif",
+                fontWeight: 800,
+                color: "#D4A574",
+                textShadow: "2px 2px 4px rgba(0,0,0,0.2)",
+              }}
+            >
+              곤장 {ashCount}대
+            </div>
+            {/* 곤장 아이콘 (텍스트로 대체) */}
+            <div
+              style={{
+                marginTop: 15,
+                fontSize: 50,
+                transform: `rotate(${gonjangSwing}deg)`,
+              }}
+            >
+              |
+            </div>
+          </div>
+
+          {/* VS */}
+          <div
+            style={{
+              fontSize: 56,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 900,
+              color: "#C41E3A",
+              textShadow: "0 0 10px rgba(196, 30, 58, 0.3)",
+              padding: "0 20px",
+            }}
+          >
+            VS
+          </div>
+
+          {/* 똥 버리기 - 50대 */}
+          <div
+            style={{
+              opacity: wasteOpacity,
+              transform: `scale(${wasteScale})`,
+              textAlign: "center",
+              flex: 1,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 32,
+                fontFamily: "Pretendard, sans-serif",
+                fontWeight: 600,
+                color: "#5D3A1A",
+                marginBottom: 15,
+              }}
+            >
+              똥을 버리는 자
+            </div>
+            <div
+              style={{
+                fontSize: 80,
+                fontFamily: "Pretendard, sans-serif",
+                fontWeight: 800,
+                color: "#C41E3A",
+                textShadow: `2px 2px 4px rgba(0,0,0,0.2), 0 0 ${15 * glowPulse}px rgba(196, 30, 58, 0.4)`,
+              }}
+            >
+              곤장 {wasteCount}대
+            </div>
+            {/* 곤장 아이콘 (텍스트로 대체) */}
+            <div
+              style={{
+                marginTop: 15,
+                fontSize: 50,
+                transform: `rotate(${-gonjangSwing}deg)`,
+              }}
+            >
+              |||
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Width Highlight */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${180}px))`,
-          opacity: widthOpacity,
-          fontSize: 60,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4af37",
-          textShadow: "3px 3px 0 #2a1810",
-          WebkitTextStroke: "3px #2a1810",
-          zIndex: 100,
-        }}
-      >
-        290m
-      </div>
-
-      {/* Calculation Icon */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${350}px)) scale(0.12)`,
-          opacity: calcOpacity,
-          zIndex: 50,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/calculation_icon.png")}
+      {/* 하단 비교 강조 박스 */}
+      {frame >= comparisonStartFrame && (
+        <div
           style={{
-            width: 1024,
-            height: 1024,
-            filter: "sepia(0.4) brightness(1.2)",
+            position: "absolute",
+            bottom: "25%",
+            left: "50%",
+            transform: `translate(-50%, 0) scale(${comparisonScale})`,
+            opacity: comparisonOpacity,
           }}
-        />
-      </div>
+        >
+          <div
+            style={{
+              background: "linear-gradient(135deg, rgba(255, 215, 0, 0.95) 0%, rgba(218, 165, 32, 0.95) 100%)",
+              padding: "20px 50px",
+              borderRadius: 15,
+              border: "3px solid #8B4513",
+              boxShadow: `0 8px 30px rgba(0, 0, 0, 0.4), 0 0 ${20 * glowPulse}px rgba(255, 215, 0, 0.5)`,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 52,
+                fontFamily: "Pretendard, sans-serif",
+                fontWeight: 800,
+                color: "#5D3A1A",
+                textAlign: "center",
+              }}
+            >
+              똥 = 재보다 <span style={{ color: "#C41E3A", fontSize: 64 }}>+20대</span> 더 귀함!
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 자막 */}
+      {currentCaption && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 40,
+            left: 0,
+            right: 0,
+            textAlign: "center",
+            fontSize: 45,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 600,
+            color: "#000000",
+            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
+            padding: "0 40px",
+            zIndex: 1000,
+          }}
+        >
+          {currentCaption.text}
+        </div>
+      )}
     </AbsoluteFill>
   );
 };

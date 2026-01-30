@@ -2,274 +2,263 @@ import React from "react";
 import {
   AbsoluteFill,
   useCurrentFrame,
+  useVideoConfig,
   Img,
   staticFile,
   interpolate,
   Easing,
 } from "remotion";
-import { FONTS } from "../lib/styles";
-import { secondsToFrames } from "../lib/animations";
+
+// 자막용 흰 테두리
+const captionStroke = `
+  -2px -2px 0 #FFF,
+   2px -2px 0 #FFF,
+  -2px  2px 0 #FFF,
+   2px  2px 0 #FFF,
+  -3px  0   0 #FFF,
+   3px  0   0 #FFF,
+   0   -3px 0 #FFF,
+   0    3px 0 #FFF
+`;
+
+// 일반 텍스트용 검은 테두리
+const textStroke = `
+  -2px -2px 0 #000,
+   2px -2px 0 #000,
+  -2px  2px 0 #000,
+   2px  2px 0 #000,
+  -3px  0   0 #000,
+   3px  0   0 #000,
+   0   -3px 0 #000,
+   0    3px 0 #000
+`;
+
+// 자막 데이터 (s10_timed.json)
+const captions = [
+  { text: "그런데 여기서 반전이 있습니다.", start: 0.0, end: 1.66 },
+  { text: "조선시대 분뇨는 단순한 오물이 아니었습니다.", start: 2.40, end: 4.88 },
+  { text: "농촌에서는 황금보다 귀한 '비료'였죠.", start: 5.90, end: 8.46 },
+];
 
 export const S10: React.FC = () => {
   const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const currentTime = frame / fps;
 
-  // Step 1: time_range [0, 4.0] - "좁은 해협에서 대형 함선들이..."
-  const bgStraitOpacity = interpolate(
-    frame,
-    [0, secondsToFrames(0.8)],
-    [0, 0.7],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
+  // 현재 자막
+  const currentCaption = captions.find(
+    (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  const currentFlowDelay = secondsToFrames(0.5);
-  const currentFlowOpacity = interpolate(
+  // "반전!" 텍스트 등장 (popUp with shake)
+  const reversalScale = interpolate(frame, [0, 20], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.bezier(0.34, 1.56, 0.64, 1),
+  });
+  const reversalOpacity = interpolate(frame, [0, 15], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  // 카메라 흔들림 효과 (0~30프레임)
+  const shakeX = frame < 30 ? Math.sin(frame * 1.5) * (1 - frame / 30) * 10 : 0;
+  const shakeY = frame < 30 ? Math.cos(frame * 2) * (1 - frame / 30) * 5 : 0;
+
+  // 오물 → 황금 변환 효과 (2.4초부터)
+  const transformStartFrame = 2.4 * fps;
+  const transformProgress = interpolate(
     frame,
-    [currentFlowDelay, currentFlowDelay + secondsToFrames(1.0)],
-    [0, 0.5],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  // Sinking ships appear sequentially
-  const sinkingShips = [
-    { x: -350, y: -100, rotation: -20, scale: 0.15, delay: 1.0 },
-    { x: -100, y: 50, rotation: 15, scale: 0.13, delay: 1.3 },
-    { x: 150, y: -50, rotation: -10, scale: 0.14, delay: 1.6 },
-    { x: 400, y: 100, rotation: 25, scale: 0.12, delay: 1.9 },
-  ];
-
-  const getSinkingOpacity = (delay: number) => {
-    const d = secondsToFrames(delay);
-    return interpolate(
-      frame,
-      [d, d + secondsToFrames(0.6)],
-      [0, 1],
-      { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-    );
-  };
-
-  // Step 2: time_range [4.0, 7.0] - "결과는 일본 전함 31척 격침"
-  const step2Start = secondsToFrames(4.0);
-
-  const resultPanelOpacity = interpolate(
-    frame,
-    [step2Start, step2Start + secondsToFrames(0.7)],
-    [0, 0.9],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  const japanLossDelay = step2Start + secondsToFrames(0.5);
-  const japanLossScale = interpolate(
-    frame,
-    [japanLossDelay, japanLossDelay + secondsToFrames(0.6)],
+    [transformStartFrame, transformStartFrame + 40],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5)) }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.33, 1, 0.68, 1),
+    }
   );
-  const japanLossOpacity = interpolate(
+  // 갈색 → 금색 색상 전환
+  const brownR = 139, brownG = 69, brownB = 19;
+  const goldR = 255, goldG = 215, goldB = 0;
+  const currentR = Math.round(brownR + (goldR - brownR) * transformProgress);
+  const currentG = Math.round(brownG + (goldG - brownG) * transformProgress);
+  const currentB = Math.round(brownB + (goldB - brownB) * transformProgress);
+
+  // 비료 아이콘 (가마니) 등장 (5.9초부터)
+  const fertilizerStartFrame = 5.9 * fps;
+  const fertilizerOpacity = interpolate(
     frame,
-    [japanLossDelay, japanLossDelay + secondsToFrames(0.6)],
+    [fertilizerStartFrame, fertilizerStartFrame + 20],
     [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    }
+  );
+  const fertilizerScale = interpolate(
+    frame,
+    [fertilizerStartFrame, fertilizerStartFrame + 20],
+    [0.5, 1],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
+    }
   );
 
-  // Step 3: time_range [7.0, 10.84] - "조선 측 피해는 단 두 명..."
-  const step3Start = secondsToFrames(7.0);
-
-  const separatorOpacity = interpolate(
-    frame,
-    [step3Start, step3Start + secondsToFrames(0.4)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.cubic) }
-  );
-
-  const joseonLossDelay = step3Start + secondsToFrames(0.4);
-  const joseonLossScale = interpolate(
-    frame,
-    [joseonLossDelay, joseonLossDelay + secondsToFrames(0.6)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5)) }
-  );
-  const joseonLossOpacity = interpolate(
-    frame,
-    [joseonLossDelay, joseonLossDelay + secondsToFrames(0.6)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-
-  const ratioDelay = step3Start + secondsToFrames(1.0);
-  const ratioScale = interpolate(
-    frame,
-    [ratioDelay, ratioDelay + secondsToFrames(0.7)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.back(1.5)) }
-  );
-  const ratioOpacity = interpolate(
-    frame,
-    [ratioDelay, ratioDelay + secondsToFrames(0.7)],
-    [0, 1],
-    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
-  );
-
-  // Pulse for ratio
-  const ratioPulseStart = step3Start + secondsToFrames(1.8);
-  const ratioPulseScale = frame >= ratioPulseStart
-    ? 1 + Math.sin(((frame - ratioPulseStart) / secondsToFrames(1.0)) * Math.PI) * 0.05
-    : 1;
+  // 황금빛 글로우 펄스
+  const goldGlow = Math.sin(frame * 0.12) * 0.3 + 0.7;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "#1a1a2e" }}>
-      {/* Background Strait Map */}
-      <Img
-        src={staticFile("assets/maps/jindo_strait_map.png")}
-        style={{
-          position: "absolute",
-          width: "143%",
-          height: "143%",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          opacity: bgStraitOpacity,
-          filter: "sepia(0.5) contrast(1.15) brightness(0.9)",
-          zIndex: -100,
-        }}
-      />
-
-      {/* Current Flow Background */}
+    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
+      {/* 반전! 텍스트 */}
       <div
         style={{
           position: "absolute",
+          top: "15%",
           left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%) scale(1.2)",
-          opacity: currentFlowOpacity,
-          zIndex: 0,
+          transform: `translate(-50%, 0) translate(${shakeX}px, ${shakeY}px) scale(${reversalScale})`,
+          opacity: reversalOpacity,
         }}
       >
-        <Img
-          src={staticFile("assets/backgrounds/current_flow.png")}
+        <div
           style={{
-            width: 1344,
-            height: 768,
-            filter: "sepia(0.4) brightness(1.0)",
+            fontSize: 120,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 900,
+            color: "#FFD700",
+            textShadow: `${textStroke}, 0 0 40px rgba(255, 215, 0, ${goldGlow})`,
+            letterSpacing: 8,
           }}
-        />
+        >
+          반전!
+        </div>
       </div>
 
-      {/* Sinking Ships */}
-      {sinkingShips.map((ship, index) => (
+      {/* 오물 → 황금 변환 원형 효과 */}
+      <div
+        style={{
+          position: "absolute",
+          top: "45%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+        }}
+      >
+        {/* 변환 중인 원 */}
         <div
-          key={index}
+          style={{
+            width: 200,
+            height: 200,
+            borderRadius: "50%",
+            background: `radial-gradient(circle, rgb(${currentR}, ${currentG}, ${currentB}) 0%, rgba(${currentR}, ${currentG}, ${currentB}, 0.6) 70%, transparent 100%)`,
+            boxShadow: transformProgress > 0.5
+              ? `0 0 ${60 * goldGlow}px rgba(255, 215, 0, ${transformProgress * 0.8})`
+              : "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          {/* 변환 텍스트 */}
+          <div
+            style={{
+              fontSize: 48,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 700,
+              color: transformProgress > 0.5 ? "#000000" : "#FFFFFF",
+              textShadow: transformProgress > 0.5
+                ? "none"
+                : "0 2px 10px rgba(0,0,0,0.5)",
+            }}
+          >
+            {transformProgress < 0.5 ? "오물" : "황금"}
+          </div>
+        </div>
+      </div>
+
+      {/* 화살표 표시 (변환 효과) */}
+      {transformProgress > 0 && (
+        <div
           style={{
             position: "absolute",
+            top: "45%",
             left: "50%",
-            top: "50%",
-            transform: `translate(calc(-50% + ${ship.x}px), calc(-50% + ${ship.y}px)) scale(${ship.scale}) rotate(${ship.rotation}deg)`,
-            opacity: getSinkingOpacity(ship.delay),
-            zIndex: 50,
+            transform: "translate(140px, -50%)",
+            opacity: transformProgress,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 72,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 800,
+              color: "#FFD700",
+              textShadow: `${textStroke}, 0 0 20px rgba(255, 215, 0, ${goldGlow})`,
+            }}
+          >
+            =
+          </div>
+        </div>
+      )}
+
+      {/* 비료 아이콘 (가마니) */}
+      {frame >= fertilizerStartFrame && (
+        <div
+          style={{
+            position: "absolute",
+            top: "38%",
+            right: "18%",
+            transform: `scale(${fertilizerScale})`,
+            opacity: fertilizerOpacity,
           }}
         >
           <Img
-            src={staticFile("assets/icons/sinking_ship.png")}
+            src={staticFile("assets/icons/gamani.png")}
             style={{
-              width: 1024,
-              height: 1024,
-              filter: "sepia(0.4) brightness(0.7)",
+              width: 180,
+              height: "auto",
+              filter: `drop-shadow(0 0 ${25 * goldGlow}px rgba(255, 215, 0, 0.6))`,
             }}
           />
+          <div
+            style={{
+              position: "absolute",
+              bottom: -40,
+              left: "50%",
+              transform: "translateX(-50%)",
+              fontSize: 36,
+              fontFamily: "Pretendard, sans-serif",
+              fontWeight: 700,
+              color: "#FFD700",
+              textShadow: `${textStroke}, 0 0 15px rgba(255, 215, 0, 0.5)`,
+              whiteSpace: "nowrap",
+            }}
+          >
+            비료
+          </div>
         </div>
-      ))}
+      )}
 
-      {/* Result Panel */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${350}px))`,
-          width: 1400,
-          height: 220,
-          backgroundColor: "#1a1208",
-          opacity: resultPanelOpacity,
-          zIndex: 80,
-        }}
-      />
-
-      {/* Japan Loss */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${-300}px), calc(-50% + ${320}px)) scale(${japanLossScale})`,
-          opacity: japanLossOpacity,
-          fontSize: 70,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4443f",
-          textShadow: "3px 3px 0 #2a1810",
-          WebkitTextStroke: "3px #2a1810",
-          zIndex: 150,
-        }}
-      >
-        일본 31척 격침
-      </div>
-
-      {/* VS Separator */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${320}px))`,
-          opacity: separatorOpacity,
-          fontSize: 100,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4af37",
-          zIndex: 150,
-        }}
-      >
-        :
-      </div>
-
-      {/* Joseon Loss */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(calc(-50% + ${320}px), calc(-50% + ${320}px)) scale(${joseonLossScale})`,
-          opacity: joseonLossOpacity,
-          fontSize: 70,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#4a9eff",
-          textShadow: "3px 3px 0 #2a1810",
-          WebkitTextStroke: "3px #2a1810",
-          zIndex: 150,
-        }}
-      >
-        조선 전사자 2명
-      </div>
-
-      {/* Result Ratio */}
-      <div
-        style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: `translate(-50%, calc(-50% + ${410}px)) scale(${ratioScale * ratioPulseScale})`,
-          opacity: ratioOpacity,
-          fontSize: 85,
-          fontFamily: FONTS.korean.serif,
-          fontWeight: "bold",
-          color: "#d4af37",
-          textShadow: "4px 4px 0 #2a1810",
-          WebkitTextStroke: "4px #2a1810",
-          zIndex: 150,
-        }}
-      >
-        31 : 2
-      </div>
+      {/* 자막 */}
+      {currentCaption && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: 40,
+            left: 0,
+            right: 0,
+            textAlign: "center",
+            fontSize: 45,
+            fontFamily: "Pretendard, sans-serif",
+            fontWeight: 600,
+            color: "#000000",
+            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
+            padding: "0 40px",
+            zIndex: 1000,
+          }}
+        >
+          {currentCaption.text}
+        </div>
+      )}
     </AbsoluteFill>
   );
 };
