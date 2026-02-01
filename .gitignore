@@ -28,3 +28,12 @@ __pycache__/
 *.pyo
 .pytest_cache/
 venv/
+
+# Project-specific generated files (created per project)
+remotion/public/
+remotion/src/scenes/
+remotion/src/transitions/
+remotion/src/Root.tsx
+
+# Test files
+test/
