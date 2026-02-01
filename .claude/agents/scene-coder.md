@@ -207,17 +207,46 @@ const imageSize = width * ELEMENT_SCALE.imageHero;  // ~346px (18%)
 
 ---
 
-## 필수 참조
+## ⚠️ 필수 참조 (코드 작성 전 반드시 읽기!)
 
-- **`remotion/src/lib/styles.ts` - 크기/스타일 상수 (필수 import!)**
-- **`remotion/src/lib/animations.ts` - 공통 애니메이션 유틸리티 (권장 import)**
-- `.claude/skills/remotion/SKILL.md` - Remotion 공식 베스트 프랙티스
-- `.claude/skills/remotion/rules/` - 상세 규칙 파일들
-  - `animations.md` - 애니메이션 패턴
-  - `timing.md` - interpolate 사용법
-  - `fonts.md` - 폰트 로딩
-  - `images.md` - 이미지 컴포넌트
-  - `sequencing.md` - Sequence 사용법
+> **코드 작성 전에 아래 파일들을 Read tool로 반드시 읽어야 합니다!**
+> 읽지 않으면 Remotion 규칙 위반으로 렌더링 오류가 발생합니다.
+
+### 1단계: 필수 읽기 (매 Part 시작 시)
+
+```
+Read tool로 반드시 읽을 파일:
+1. remotion/src/lib/styles.ts        → FONT_SIZES, IMAGE_SIZES 상수 확인
+2. remotion/src/lib/animations.ts    → fadeIn, cameraZoom 등 유틸리티 확인
+3. .claude/skills/remotion/SKILL.md  → Remotion 베스트 프랙티스 확인
+```
+
+### 2단계: 상황별 읽기 (해당 애니메이션 구현 시)
+
+| 구현할 기능 | 읽을 파일 |
+|------------|----------|
+| interpolate 사용 | `.claude/skills/remotion/rules/timing.md` |
+| Img 컴포넌트 사용 | `.claude/skills/remotion/rules/images.md` |
+| staticFile 사용 | `.claude/skills/remotion/rules/assets.md` |
+| Sequence 사용 | `.claude/skills/remotion/rules/sequencing.md` |
+| 복잡한 애니메이션 | `.claude/skills/remotion/rules/animations.md` |
+| 텍스트 애니메이션 | `.claude/skills/remotion/rules/text-animations.md` |
+| 자막 표시 | `.claude/skills/remotion/rules/display-captions.md` |
+| **시각 효과 (snow, rain, fire 등)** | `.claude/skills/remotion/rules/effects.md` |
+
+### 작업 순서 (필수!)
+
+```
+1. [Read] styles.ts 읽기
+2. [Read] animations.ts 읽기
+3. [Read] SKILL.md 읽기
+4. [Read] 필요한 rules/*.md 읽기 (상황별)
+   - effect 타입 요소가 있으면 → effects.md 필수 읽기!
+5. [Write] S{n}.tsx 코드 작성
+```
+
+> ⚠️ **1~3단계를 건너뛰면 안 됩니다!**
+> 상수값, 유틸리티 함수를 모르면 올바른 코드를 작성할 수 없습니다.
 
 ---
 
@@ -910,6 +939,7 @@ import { T1 } from "./transitions/T1";
 - [ ] animation_hints를 반영했는가?
 - [ ] 애니메이션 타이밍이 씬 duration 내에 있는가?
 - [ ] Easing.bezier 형태로 사용했는가?
+- [ ] effect 타입 요소가 있으면 effects.md 참조하여 구현했는가?
 
 ### 출력
 - [ ] TSX 파일이 올바른 경로에 저장되었는가?

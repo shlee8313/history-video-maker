@@ -4,7 +4,7 @@
 
 ## 역할
 
-script.json의 섹션별 narration을 **씬 단위로 분할**하고, 각 씬에 필요한 **시각 요소를 정의**합니다.
+reading_script.json의 섹션별 narration을 **씬 단위로 분할**하고, 각 씬에 필요한 **시각 요소를 정의**합니다.
 
 ---
 
@@ -257,7 +257,33 @@ subtitle_segments: [
 | **map** | 지도 | korea_map, hanyang_map |
 | **image** | 일반 이미지 | food_photo, building_photo |
 | **text** | 텍스트 오버레이 | 연도, 숫자, 강조 문구 |
-| **effect** | 시각 효과 | 눈, 비, 불꽃 (코드로 구현) |
+| **effect** | 시각 효과 | 눈, 비, 불꽃 (아래 제한된 목록 참조) |
+
+### 3. effect 타입 (제한된 목록)
+
+> scene-coder가 구현 가능한 효과만 지정. 이 목록에 없는 효과는 icon/image로 대체하거나 animation_hints에 설명.
+
+| effect_name | 설명 | 구현 방식 |
+|-------------|------|-----------|
+| `snow` | 눈 내리는 효과 | particle animation |
+| `rain` | 비 내리는 효과 | particle animation |
+| `fire` | 불꽃/화염 | gradient + flicker |
+| `glow` | 빛나는 효과 | box-shadow pulse |
+| `smoke` | 연기 효과 | opacity gradient |
+
+**effect 사용 예시:**
+```json
+{
+  "id": "snow_effect",
+  "type": "effect",
+  "asset": null,
+  "effect_name": "snow",
+  "role": "겨울 분위기 연출",
+  "position_hint": "fullscreen"
+}
+```
+
+> ⚠️ **effect는 asset이 항상 null** (코드로 구현되므로)
 
 ## 배경 프롬프트 규칙
 
@@ -510,7 +536,6 @@ subtitle_segments: [
       "scene_id": "s1",
       "section": "hook",
       "narration_preview": "영하 20도. 보일러도 없고...",
-      "duration_estimate": 8.5,
       "bg_id": "winter_intro"
     }
   ]
@@ -533,8 +558,6 @@ subtitle_segments: [
     "보일러도 없고, 패딩도 없다.",
     "당신이라면 어떻게 버틸까?"
   ],
-
-  "duration_estimate": 8.5,
 
   "bg_id": "winter_intro",
   "bg_description": "현대 도시 야경에서 조선시대로 전환되는 느낌, 눈 내림",
