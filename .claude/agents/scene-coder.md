@@ -801,10 +801,28 @@ width: IMAGE_SIZES.portrait,
 ## durationInFrames 계산
 
 ```
-s{n}_timed.json의 timing.duration × fps = durationInFrames
+s{n}_timed.json의 duration × fps = durationInFrames
 
 예: duration 8.5초, fps 30
 → durationInFrames = Math.ceil(8.5 * 30) = 255
+```
+
+### s{n}_timed.json 구조
+
+> 참고: scene-splitter 에이전트의 출력 형식
+
+```json
+{
+  "scene_id": "s1",
+  "section": "hook",
+  "duration": 8.5,
+  "section_start": 0.0,
+  "section_end": 8.5,
+  "subtitle_segments": [
+    { "index": 1, "text": "영하 20도.", "start": 0.0, "end": 0.9 },
+    { "index": 2, "text": "보일러도 없고...", "start": 1.2, "end": 3.1 }
+  ]
+}
 ```
 
 ---

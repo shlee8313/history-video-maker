@@ -66,51 +66,35 @@ Whisper: ["한국", "인은"] 또는 ["한국인", "은"]
 
 ### s{n}_timed.json 형식
 
+> ⚠️ **CLAUDE.md, pipeline.py와 동일한 구조 사용!**
+
 ```json
 {
   "scene_id": "s1",
   "section": "hook",
-
-  "timing": {
-    "section_audio": "output/3_audio/hook.mp3",
-    "scene_start": 0.0,
-    "scene_end": 8.5,
-    "duration": 8.5
-  },
-
-  "captions": [
-    {
-      "index": 0,
-      "text": "영하 20도.",
-      "start": 0.0,
-      "end": 0.9,
-      "duration": 0.9,
-      "words_matched": ["영하", "이십", "도"]
-    },
+  "duration": 8.5,
+  "section_start": 0.0,
+  "section_end": 8.5,
+  "subtitle_segments": [
     {
       "index": 1,
-      "text": "보일러도 없고, 패딩도 없다.",
-      "start": 1.2,
-      "end": 3.1,
-      "duration": 1.9,
-      "words_matched": ["보일러도", "없고", "패딩도", "없다"]
+      "text": "영하 20도.",
+      "start": 0.0,
+      "end": 0.9
     },
     {
       "index": 2,
+      "text": "보일러도 없고, 패딩도 없다.",
+      "start": 1.2,
+      "end": 3.1
+    },
+    {
+      "index": 3,
       "text": "당신이라면 어떻게 버틸까?",
       "start": 3.5,
-      "end": 5.8,
-      "duration": 2.3,
-      "words_matched": ["당신이라면", "어떻게", "버틸까"]
+      "end": 5.8
     }
-  ],
-
-  "match_info": {
-    "total_segments": 3,
-    "matched_segments": 3,
-    "match_rate": "100%",
-    "confidence": "high"
-  }
+  ]
 }
 ```
 

@@ -27,6 +27,7 @@ Phase 6: FINAL
     final           최종 병합 (전환 + BGM)
 
 유틸리티:
+    sync-assets     에셋 동기화 (assets/ → remotion/public/assets/)
     status          프로젝트 상태 확인
     clean           output 폴더 초기화 (에셋 유지)
     init            프로젝트 완전 초기화 (에셋 포함)
@@ -1194,6 +1195,52 @@ def cmd_final(args):
 # ============================================================
 # 유틸리티 명령어
 # ============================================================
+def cmd_sync_assets(args):
+    """에셋 동기화 (assets/ → remotion/public/assets/)"""
+    import shutil
+
+    print("\n🔄 에셋 동기화 시작")
+
+    # 복사할 폴더 목록
+    asset_folders = ["icons", "portraits", "maps", "artifacts", "images"]
+
+    for folder in asset_folders:
+        src = ASSETS_DIR / folder
+        dst = REMOTION_ASSETS_DIR / folder
+
+        if src.exists():
+            dst.mkdir(parents=True, exist_ok=True)
+            count = 0
+            for f in src.glob("*.png"):
+                shutil.copy2(f, dst / f.name)
+                count += 1
+            for f in src.glob("*.jpg"):
+                shutil.copy2(f, dst / f.name)
+                count += 1
+            if count > 0:
+                print(f"  [OK] {folder}/ ({count}개)")
+
+    # 배경 이미지 동기화
+    bg_src = BACKGROUNDS_DIR
+    bg_dst = REMOTION_ASSETS_DIR / "backgrounds"
+    if bg_src.exists():
+        bg_dst.mkdir(parents=True, exist_ok=True)
+        count = 0
+        for f in bg_src.glob("bg_s*.png"):
+            shutil.copy2(f, bg_dst / f.name)
+            count += 1
+        if count > 0:
+            print(f"  [OK] backgrounds/ ({count}개)")
+
+    # 캐시 삭제
+    cache_dir = REMOTION_DIR / "node_modules" / ".cache"
+    if cache_dir.exists():
+        shutil.rmtree(cache_dir)
+        print(f"  [OK] 캐시 삭제")
+
+    print("\n✅ 에셋 동기화 완료!")
+
+
 def cmd_status(args):
     """프로젝트 상태 확인"""
     state = load_state()
@@ -1568,6 +1615,9 @@ def main():
     p_final.set_defaults(func=cmd_final)
 
     # 유틸리티
+    p_sync = subparsers.add_parser("sync-assets", help="에셋 동기화 (assets/ → remotion/)")
+    p_sync.set_defaults(func=cmd_sync_assets)
+
     p_status = subparsers.add_parser("status", help="프로젝트 상태")
     p_status.set_defaults(func=cmd_status)
 

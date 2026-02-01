@@ -329,24 +329,27 @@ rm -rf .claude/skills/history-script-writer/
 ## 6. 체크리스트
 
 ### 삭제 대상
-- [ ] history-script-writer 폴더 삭제
-- [ ] scene-director 분할 에이전트 3개 삭제 (core, hook, outro)
-- [ ] remotion-coder.md 삭제
-- [ ] visual-prompter.md 삭제
-- [ ] visual-review.md 삭제
+- [x] history-script-writer 폴더 삭제 ✅
+- [x] scene-director 분할 에이전트 3개 삭제 (core, hook, outro) ✅
+- [x] remotion-coder.md 삭제 ✅
+- [x] visual-prompter.md 삭제 ✅
+- [x] visual-review.md 삭제 ✅
+- [x] settings.local.json에서 history-script-writer 참조 제거 ✅
 
 ### 수정 대상
-- [ ] CLAUDE.md 디렉토리 구조 수정 (assets/images/ 추가)
-- [ ] CLAUDE.md Phase 3 수정 (audio-splitter 추가)
-- [ ] CLAUDE.md Phase 4 수정 (code-validator 선택 추가)
-- [ ] scene-splitter.md 출력 구조 수정
-- [ ] pipeline.py에 sync-assets 추가
+- [x] CLAUDE.md 디렉토리 구조 수정 (assets/images/, artifacts/ 추가) ✅
+- [x] CLAUDE.md 에이전트 목록에 audio-splitter 추가 ✅
+- [x] CLAUDE.md Phase 3 수정 (audio-splitter 추가) ✅
+- [x] CLAUDE.md 4_visual 폴더 제거 (미사용) ✅
+- [x] scene-splitter.md 출력 구조 수정 ✅
+- [x] pipeline.py에 sync-assets 추가 ✅
 - [ ] pipeline.py 전환 주석 정리
-- [ ] scene-coder.md에서 s{n}_timed.json 입력 구조 확인
+- [x] scene-coder.md에서 s{n}_timed.json 입력 구조 확인 ✅
+- [x] pipeline.py 전환 주석 정리 ✅ (이미 적절히 처리됨)
 
 ### 검증
-- [ ] python pipeline.py status 실행
-- [ ] 워크플로우 일관성 확인
+- [x] python pipeline.py status 실행 ✅
+- [x] 워크플로우 일관성 확인 ✅
 
 ---
 
@@ -366,9 +369,9 @@ rm -rf .claude/skills/history-script-writer/
 ```
 [TTS 생성] → python pipeline.py audio
     ↓
-[오디오 분할 시점] → audio-splitter 에이전트
-    ↓
 [자막 타이밍] → scene-splitter 에이전트
+    ↓
+[오디오 분할 시점] → audio-splitter 에이전트
     ↓
 [TSX 생성] → scene-coder 에이전트
 ```

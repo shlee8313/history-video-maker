@@ -124,6 +124,7 @@ scenes.json의 meta.sections 키 목록을 순회하며 호출
 |----------|---------------|
 | **scene-director** | 모든 섹션 완료 후 |
 | **scene-splitter** | 전체 완료 후 |
+| **audio-splitter** | 전체 완료 후 |
 | **scene-coder** | **Part별** 완료 후 (state.json의 parts 참조) |
 
 ---
@@ -165,6 +166,7 @@ HISTORY_VIDEO_MAKER/
 │   │
 │   └── agents/
 │       ├── scene-director.md    # 씬 분할 에이전트
+│       ├── audio-splitter.md    # 오디오 분할 시점 결정 에이전트
 │       ├── scene-splitter.md    # 자막 타이밍 에이전트
 │       └── scene-coder.md       # Remotion 코드 에이전트
 │
@@ -172,6 +174,8 @@ HISTORY_VIDEO_MAKER/
 │   ├── icons/
 │   ├── portraits/
 │   ├── maps/
+│   ├── images/
+│   ├── artifacts/
 │   └── backgrounds/
 │
 ├── BGM/                         # 배경음악
@@ -206,9 +210,6 @@ HISTORY_VIDEO_MAKER/
     │
     ├── 3_backgrounds/           # 배경 이미지 (수동)
     │   └── bg_s{n}.png
-    │
-    ├── 4_visual/                # Phase 4 출력
-    │   └── s{n}_visual.json     # 비주얼 설계 (선택)
     │
     ├── 5_renders/               # Phase 5 출력
     │   └── s{n}_raw.mp4         # Remotion 렌더링 (투명)
@@ -481,7 +482,7 @@ updated_at: {현재 시간}
 ### Phase 3: AUDIO (음성 + 타이밍)
 
 ```
-담당: Python CLI + scene-splitter 에이전트
+담당: Python CLI + scene-splitter 에이전트 + audio-splitter 에이전트
 ```
 
 **Step 3-1: TTS 생성 (Python)**
@@ -493,10 +494,17 @@ python pipeline.py audio --voice nova
 
 **Step 3-2: 자막 타이밍 매칭 (에이전트)**
 ```
-scene-splitter 에이전트 × 7개 섹션 순차 호출
+scene-splitter 에이전트 × 섹션 수만큼 순차 호출
 ```
 - Whisper words ↔ subtitle_segments 의미적 매칭
 - 출력: `output/2_audio/s{n}_timed.json`, `output/2_audio/s{n}.srt`
+
+**Step 3-3: 오디오 분할 시점 결정 (에이전트)**
+```
+audio-splitter 에이전트: 섹션별 오디오를 씬 단위로 분할할 시점 결정
+```
+- 입력: `scenes_{section}.json`, `{section}_timestamps.json`, `scenes.json`
+- 출력: `split_points_{section}.json`
 
 **s{n}_timed.json 구조:**
 ```json
@@ -716,10 +724,11 @@ updated_at: {현재 시간}
 
 # Phase 3: 오디오
 python pipeline.py audio --voice nova   # TTS + Whisper
-# → scene-splitter 에이전트 × 7 순차 호출
+# → audio-splitter 에이전트 (오디오 분할 시점)
+# → scene-splitter 에이전트 × 섹션 수만큼 순차 호출
 
 # Phase 4: 코드
-# → scene-coder 에이전트 × 7 순차 호출
+# → scene-coder 에이전트 × Part 단위 호출
 python pipeline.py update-root          # Root.tsx 업데이트
 
 # Phase 5: 렌더링
