@@ -169,16 +169,16 @@ hook: 12개 (10개 초과!)
 
 | 파일 | 경로 | 설명 |
 |------|------|------|
-| script.json | output/1_script/script.json | 대본 (7섹션) |
+| reading_script.json | output/1_scripts/reading_script.json | 대본 (동적 섹션) |
 | asset_catalog.csv | output/asset_catalog.csv | 사용 가능한 에셋 목록 |
 
 ## 출력
 
 | 파일 | 경로 | 설명 |
 |------|------|------|
-| scenes.json | output/2_scenes/scenes.json | 전체 씬 목록 (요약) |
-| s1.json ~ sN.json | output/2_scenes/s{n}.json | 개별 씬 상세 |
-| bg_prompts.json | output/2_scenes/bg_prompts.json | 배경 이미지 프롬프트 |
+| scenes.json | output/1_scripts/scenes.json | 전체 씬 목록 (요약) |
+| s1.json ~ sN.json | output/1_scripts/s{n}.json | 개별 씬 상세 |
+| bg_prompts.json | output/1_scripts/bg_prompts.json | 배경 이미지 프롬프트 |
 
 ---
 

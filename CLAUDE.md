@@ -11,12 +11,13 @@ Remotion + FFmpeg + OpenAI TTS를 활용한 풀스택 영상 제작 워크플로
 
 | 분야 | 기술 | 용도 |
 |------|------|------|
-| 영상 생성 | Remotion | React 기반 씬 렌더링 (투명 배경) |
+| 영상 생성 | Remotion | React 기반 씬 렌더링 (배경 포함) |
 | 자막 | Remotion | @remotion/captions 활용 |
-| 전환 효과 | Remotion | 씬 간 전환 애니메이션 |
 | 음성 | OpenAI TTS | 나레이션 생성 |
 | 타임스탬프 | Whisper | 자막 타이밍 추출 |
-| 영상 합성 | FFmpeg | 배경 합성, 오디오 믹싱, 최종 병합 |
+| 영상 합성 | FFmpeg | 오디오 믹싱, 최종 병합 |
+
+> **참고**: 전환 클립은 사용하지 않음 (섹션 직접 연결)
 
 ---
 
@@ -217,9 +218,6 @@ HISTORY_VIDEO_MAKER/
     │
     ├── 6_sections/              # 섹션 합성본
     │   └── section_*.mp4
-    │
-    ├── 7_transitions/           # 전환 클립
-    │   └── t{n}_*.mp4
     │
     └── final_video.mp4
 ```
@@ -528,6 +526,7 @@ updated_at: {현재 시간}
 담당: scene-coder 에이전트
 참조:
   - remotion/src/lib/styles.ts (크기/스타일 상수 - 필수 import!)
+  - remotion/src/lib/animations.ts (공통 애니메이션 유틸리티 - 권장 import)
   - .claude/skills/remotion/SKILL.md (Remotion 베스트 프랙티스)
 입력: s{n}_timed.json + s{n}.json + asset_catalog.csv
 출력:
@@ -537,11 +536,11 @@ updated_at: {현재 시간}
 
 **핵심 규칙:**
 - ✅ **styles.ts import 필수** (크기 상수 중앙 관리)
-- ✅ 투명 배경 (`backgroundColor: "transparent"`)
+- ✅ **animations.ts import 권장** (공통 애니메이션 유틸리티)
+- ✅ **배경 이미지 포함** (Remotion에서 직접 렌더링)
 - ✅ 자막 Remotion 내부 처리 (captions 배열)
 - ✅ interpolate에 extrapolate 옵션 필수
 - ❌ **숫자 하드코딩 금지** (FONT_SIZES, IMAGE_SIZES 상수 사용)
-- ❌ 배경 이미지 포함 금지 (FFmpeg에서 합성)
 - ❌ CSS 애니메이션 금지
 
 **styles.ts 상수 (크기 변경 시 한 곳만 수정):**
@@ -551,6 +550,17 @@ updated_at: {현재 시간}
 | `IMAGE_SIZES` | icon(120), portrait(280), map(500) |
 | `CAPTION_STROKE` | 자막용 흰 테두리 |
 | `TEXT_STROKE` | 일반 텍스트용 검은 테두리 |
+
+**animations.ts 유틸리티 (코드 간결화):**
+| 함수 | 용도 |
+|------|------|
+| `fadeIn(frame, start, duration)` | 페이드인 |
+| `fadeOut(frame, start, duration)` | 페이드아웃 |
+| `slideInLeft/Right(frame, start, duration)` | 슬라이드 인 |
+| `scaleIn(frame, start, duration)` | 크기 확대 (탄성) |
+| `cameraZoom(frame, start, duration, from, to)` | 카메라 줌 |
+| `cameraPan(frame, start, duration, ...)` | 카메라 팬 |
+| `pulse(frame, start, cycle)` | 반복 펄스 |
 
 **Root.tsx 자동 업데이트:**
 ```bash
@@ -578,19 +588,22 @@ updated_at: {현재 시간}
 > `staticFile()`은 `remotion/public/` 폴더만 참조하므로, 프로젝트 에셋을 복사해야 합니다.
 
 ```bash
-# 에셋 동기화 (assets/ → remotion/public/assets/)
+# 에셋 동기화 (assets/ + output/3_backgrounds/ → remotion/public/assets/)
 cp assets/icons/*.png remotion/public/assets/icons/
 cp assets/maps/*.png remotion/public/assets/maps/
 cp assets/portraits/*.png remotion/public/assets/portraits/
 cp assets/artifacts/*.png remotion/public/assets/artifacts/
-cp assets/images/*.png remotion/public/assets/images/
+mkdir -p remotion/public/assets/images && cp assets/images/*.png remotion/public/assets/images/
+
+# ★ 배경 이미지 동기화 (배경 포함 렌더링 모드)
+mkdir -p remotion/public/assets/backgrounds
+cp output/3_backgrounds/bg_s*.png remotion/public/assets/backgrounds/
 
 # 캐시 삭제 (새 에셋 인식을 위해)
 rm -rf remotion/node_modules/.cache
 ```
 
-> 💡 **참고:** 배경 이미지(`output/3_backgrounds/`)는 Remotion이 아닌 **FFmpeg 합성(Step 5-2)**에서 사용됩니다.
-> Remotion Studio에서 투명 배경(체크무늬)이 보이는 것이 **정상**입니다!
+> 💡 **참고:** 배경 이미지는 Remotion에서 직접 렌더링됩니다. (FFmpeg 합성 단계 생략)
 
 **에셋 경로 구조:**
 | 원본 위치 | Remotion 위치 | staticFile 경로 |
@@ -600,6 +613,7 @@ rm -rf remotion/node_modules/.cache
 | `assets/maps/` | `remotion/public/assets/maps/` | `staticFile("assets/maps/...")` |
 | `assets/artifacts/` | `remotion/public/assets/artifacts/` | `staticFile("assets/artifacts/...")` |
 | `assets/images/` | `remotion/public/assets/images/` | `staticFile("assets/images/...")` |
+| `output/3_backgrounds/` | `remotion/public/assets/backgrounds/` | `staticFile("assets/backgrounds/bg_s{n}.png")` |
 
 **Step 5-0b: Remotion Studio 시각적 검증 (필수)**
 
@@ -624,7 +638,7 @@ cd remotion && npm run dev
 **검증 체크리스트:**
 - [ ] 이미지/아이콘이 정상 로딩되는가?
 - [ ] 자막이 표시되는가?
-- [ ] 투명 배경(체크무늬)이 보이는가?
+- [ ] **배경 이미지가 정상 표시되는가?**
 - [ ] 콘솔에 에러가 없는가?
 - [ ] 요소가 화면 안에 있는가?
 
@@ -632,19 +646,23 @@ cd remotion && npm run dev
 - ✅ **Claude_in_Chrome MCP 필수** (브라우저 제어용)
 - ✅ **시각적 검증 없이 렌더링 진행 금지**
 
-**Step 5-1: Remotion 렌더링 (투명 배경)**
+**Step 5-1: Remotion 렌더링 (배경 포함)**
 ```bash
-python pipeline.py render              # 전체
+python pipeline.py render              # 전체 (배경 포함, 기본)
 python pipeline.py render --section hook  # 섹션별
+python pipeline.py render --transparent   # 투명 렌더링 (호환용)
 ```
-- 출력: `output/5_renders/s{n}_raw.mp4` (투명 배경)
+- 기본 출력: `output/6_scenes/s{n}.mp4` (배경 포함, 직접 출력)
+- 투명 출력: `output/5_renders/s{n}_raw.webm` (FFmpeg 합성 필요)
 
-**Step 5-2: FFmpeg 3-Layer 합성 (배경 + 렌더링 + 자막)**
+**Step 5-2: FFmpeg 배경 합성 (투명 렌더링 시에만)**
 ```bash
-python pipeline.py composite
+python pipeline.py composite  # --transparent로 렌더링한 경우만 필요
 ```
-- 배경(3_backgrounds) + 투명렌더링(5_renders) + SRT(2_audio)
+- 배경(3_backgrounds) + 투명렌더링(5_renders)
 - 출력: `output/6_scenes/s{n}.mp4`
+
+> 💡 **참고:** 기본 렌더링(배경 포함)을 사용하면 이 단계는 **생략**됩니다.
 
 **Step 5-3: 섹션 합성 (concat + audio)**
 ```bash
@@ -668,8 +686,8 @@ python pipeline.py final --bgm-volume 0.08
 ```
 
 **처리:**
-1. 전환 클립 생성 (output/7_transitions/)
-2. 섹션 + 전환 concat
+1. 섹션 직접 연결 (전환 클립 미사용)
+2. 섹션 간 gap 추가 (기본 1초, 마지막 프레임 유지)
 3. BGM 믹싱 (볼륨 조절)
 
 **출력:** `output/final_video.mp4`
@@ -711,18 +729,24 @@ cp assets/maps/*.png remotion/public/assets/maps/
 cp assets/portraits/*.png remotion/public/assets/portraits/
 cp assets/artifacts/*.png remotion/public/assets/artifacts/
 mkdir -p remotion/public/assets/images && cp assets/images/*.png remotion/public/assets/images/
+# ★ 배경 이미지 동기화 (배경 포함 렌더링)
+mkdir -p remotion/public/assets/backgrounds
+cp output/3_backgrounds/bg_s*.png remotion/public/assets/backgrounds/
 rm -rf remotion/node_modules/.cache
-# 참고: 배경(3_backgrounds)은 FFmpeg 합성에서 사용, Remotion에선 투명배경이 정상!
 
 # Step 5-0b: 시각적 검증 (필수!)
 cd remotion && npm run dev
 # → Claude가 브라우저로 모든 씬 검증 후 진행
-python pipeline.py render               # Step 5-1: Remotion 렌더링
-python pipeline.py composite            # Step 5-2: 배경 합성
+python pipeline.py render               # Step 5-1: Remotion 렌더링 (배경 포함)
+# python pipeline.py composite          # Step 5-2: 생략 (배경 포함 렌더링 시)
 python pipeline.py section-merge        # Step 5-3: 섹션 합성
 
 # Phase 6: 최종
-python pipeline.py final                # 전환 + BGM + 병합
+python pipeline.py final                # 섹션 연결 + BGM 병합
+
+# 유틸리티
+python pipeline.py validate-parts       # Part 분할 정보 검증
+python pipeline.py status               # 프로젝트 상태 확인
 ```
 
 ---
@@ -788,6 +812,27 @@ python pipeline.py final                # 전환 + BGM + 병합
 (Task 3번 호출 = diff 3번 누적 = 토큰 낭비)
 ```
 
+### youtube-uploader (Phase 6 완료 후)
+
+> 영상 완성 후 유튜브 업로드 메타데이터 생성
+
+**트리거:**
+```
+"유튜브 업로드" 또는 "youtube-uploader"
+```
+
+**출력:**
+- 제목 3가지 (메인/클릭유도형/교육형)
+- 설명 (타임라인 포함)
+- 태그 20~30개
+- 썸네일 프롬프트 3개 + 한글 텍스트 오버레이 제안
+- 업로드 설정 체크리스트
+- `output/script_text.txt` (대본 전문)
+
+**필수 조건:**
+- `output/1_scripts/reading_script.json` 필요 (Phase 1 완료)
+- `output/2_audio/s*_timed.json` 필요 (타임라인 계산용, Phase 3 완료)
+
 ---
 
 ## 처리 위치 요약
@@ -796,10 +841,13 @@ python pipeline.py final                # 전환 + BGM + 병합
 |------|----------|--------|
 | 씬 애니메이션 | ✅ | |
 | 자막 | ✅ | |
-| 전환 효과 | ✅ | |
-| 배경 이미지 | | ✅ |
+| **배경 이미지** | ✅ | |
 | 오디오 합성 | | ✅ |
+| 섹션 연결 | | ✅ |
 | BGM 믹싱 | | ✅ |
+
+> **참고**: 전환 클립은 사용하지 않음 - 섹션 간 직접 연결 (gap으로 자연스러운 전환)
+> **참고**: 배경 이미지는 Remotion에서 직접 포함하여 렌더링 (FFmpeg 합성 단계 생략)
 
 ---
 
@@ -891,7 +939,7 @@ python pipeline.py final                # 전환 + BGM + 병합
 
 | 문제 | 원인 | 해결 |
 |------|------|------|
-| 투명 배경 안됨 | backgroundColor 설정 | `"transparent"` 확인 |
+| 배경 안보임 | 경로/동기화 문제 | 에셋 동기화 확인, staticFile 경로 확인 |
 | 이상한 애니메이션 값 | extrapolate 미설정 | clamp 옵션 추가 |
 | 에셋 404 | 경로 불일치 | asset_catalog.csv 확인 |
 | Hook 에러 | 조건문 안에서 Hook | 최상위로 이동 |

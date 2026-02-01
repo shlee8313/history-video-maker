@@ -1,12 +1,13 @@
 # Scene Coder Agent
 
-> Remotion 코드를 생성하는 에이전트 (씬 + 전환)
+> Remotion 코드를 생성하는 에이전트 (씬 컴포넌트)
 
 ## 역할
 
 타이밍이 확정된 씬 데이터를 **Remotion TSX 코드**로 변환합니다.
 - 씬 컴포넌트 (S1.tsx ~ SN.tsx)
-- 전환 컴포넌트 (T1.tsx ~ TN.tsx) - 전환 개수는 섹션 수에 따라 가변
+
+> **참고**: 전환 컴포넌트는 사용하지 않음 (섹션 간 직접 연결)
 
 ---
 
@@ -78,10 +79,10 @@ console.log(partScenes.length); // 10개 이하여야 함
 (Task 3번 = diff 3번 누적 = 토큰 낭비!)
 ```
 
-### 전환 컴포넌트 개수
+### 전환 컴포넌트 (사용 안함)
 
-- 전환은 **섹션 수 - 1**개 생성
-- 예: 11개 섹션 → T1.tsx ~ T10.tsx
+> ⚠️ **전환 컴포넌트는 생성하지 않습니다.**
+> 섹션 간 연결은 FFmpeg에서 gap(마지막 프레임 유지)으로 처리합니다.
 
 ---
 
@@ -153,6 +154,37 @@ import {
 <Img src={...} style={{ width: 280 }} />
 ```
 
+### ELEMENT_SCALE 사용법 (동적 크기)
+
+> 화면 크기에 비례하는 이모지/이미지 크기가 필요할 때 사용
+
+```tsx
+import { ELEMENT_SCALE } from "../lib/styles";
+
+const { width } = useVideoConfig();
+
+// 이모지 크기 (화면 너비 기준)
+const emojiSize = width * ELEMENT_SCALE.emojiHero;  // ~192px (10%)
+
+// 이미지 크기 (화면 너비 기준)
+const imageSize = width * ELEMENT_SCALE.imageHero;  // ~346px (18%)
+
+// 사용 예시: 크기 비교 씬
+<div style={{ fontSize: emojiSize }}>🧍</div>
+<Img style={{ width: imageSize }} />
+```
+
+| 상수 | 비율 | 1920px 기준 | 용도 |
+|------|------|-------------|------|
+| `emojiSmall` | 3% | ~58px | 작은 이모지 |
+| `emoji` | 5% | ~96px | 일반 이모지 |
+| `emojiLarge` | 8% | ~154px | 큰 이모지 |
+| `emojiHero` | 10% | ~192px | 크기 비교용 |
+| `imageSmall` | 8% | ~154px | 작은 이미지 |
+| `image` | 12% | ~230px | 일반 이미지 |
+| `imageLarge` | 15% | ~288px | 큰 이미지 |
+| `imageHero` | 18% | ~346px | 메인 강조용 |
+
 ### 테두리 스타일 사용법
 
 ```tsx
@@ -178,6 +210,7 @@ import {
 ## 필수 참조
 
 - **`remotion/src/lib/styles.ts` - 크기/스타일 상수 (필수 import!)**
+- **`remotion/src/lib/animations.ts` - 공통 애니메이션 유틸리티 (권장 import)**
 - `.claude/skills/remotion/SKILL.md` - Remotion 공식 베스트 프랙티스
 - `.claude/skills/remotion/rules/` - 상세 규칙 파일들
   - `animations.md` - 애니메이션 패턴
@@ -185,6 +218,84 @@ import {
   - `fonts.md` - 폰트 로딩
   - `images.md` - 이미지 컴포넌트
   - `sequencing.md` - Sequence 사용법
+
+---
+
+## ⚠️ 권장: animations.ts 유틸리티 사용
+
+> **반복되는 애니메이션 패턴은 `animations.ts` 유틸리티를 사용하세요!**
+> 직접 interpolate를 작성하는 것보다 **코드가 간결하고 일관성 있습니다.**
+
+### Import 문
+
+```tsx
+import {
+  FPS,
+  secondsToFrames,
+  fadeIn,
+  fadeOut,
+  slideInLeft,
+  slideInRight,
+  scaleIn,
+  cameraZoom,
+  cameraPan,
+  pulse,
+} from "../lib/animations";
+```
+
+### 사용 가능한 함수
+
+| 함수 | 용도 | 예시 |
+|------|------|------|
+| `fadeIn(frame, startFrame, duration)` | 페이드인 | `opacity: fadeIn(frame, 0, 15)` |
+| `fadeOut(frame, startFrame, duration)` | 페이드아웃 | `opacity: fadeOut(frame, 100, 15)` |
+| `slideInLeft(frame, start, duration, distance?)` | 왼쪽에서 슬라이드 | `translateX: slideInLeft(frame, 0, 24)` |
+| `slideInRight(frame, start, duration, distance?)` | 오른쪽에서 슬라이드 | `translateX: slideInRight(frame, 0, 24)` |
+| `scaleIn(frame, start, duration, from?, to?)` | 크기 확대 (탄성) | `scale: scaleIn(frame, 0, 20)` |
+| `cameraZoom(frame, start, duration, from?, to?)` | 카메라 줌 | `scale: cameraZoom(frame, 0, 90, 1, 1.2)` |
+| `cameraPan(frame, start, duration, fromX, toX, fromY, toY)` | 카메라 팬 | `{ x, y } = cameraPan(...)` |
+| `pulse(frame, start, cycleDuration, min?, max?)` | 반복 펄스 | `scale: pulse(frame, 0, 30)` |
+| `secondsToFrames(seconds)` | 초 → 프레임 | `secondsToFrames(1.5)` → 45 |
+
+### 사용 예시
+
+```tsx
+import { fadeIn, scaleIn, cameraZoom } from "../lib/animations";
+
+export const S1: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+
+  // 아이콘 페이드인 (0~15프레임)
+  const iconOpacity = fadeIn(frame, 0, 15);
+
+  // 텍스트 팝업 (10~30프레임, 탄성 효과)
+  const textScale = scaleIn(frame, 10, 20);
+
+  // 카메라 줌 (전체 씬)
+  const zoom = cameraZoom(frame, 0, durationInFrames, 1, 1.1);
+
+  return (
+    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
+      <div style={{ transform: `scale(${zoom})` }}>
+        <Img style={{ opacity: iconOpacity }} ... />
+        <div style={{ transform: `scale(${textScale})` }}>텍스트</div>
+      </div>
+    </AbsoluteFill>
+  );
+};
+```
+
+### 언제 animations.ts를 사용하는가?
+
+| 상황 | 권장 |
+|------|------|
+| 단순 fadeIn/fadeOut | ✅ `fadeIn()`, `fadeOut()` 사용 |
+| 슬라이드 인 | ✅ `slideInLeft()`, `slideInRight()` 사용 |
+| 크기 확대 (탄성) | ✅ `scaleIn()` 사용 |
+| 카메라 줌/팬 | ✅ `cameraZoom()`, `cameraPan()` 사용 |
+| 복잡한 커스텀 애니메이션 | ⚠️ 직접 `interpolate` 사용 |
+| 특수 easing 필요 | ⚠️ 직접 `interpolate` 사용 |
 
 ---
 
@@ -204,23 +315,56 @@ import {
 | 파일 | 경로 | 설명 |
 |------|------|------|
 | S{n}.tsx | remotion/src/scenes/S{n}.tsx | 씬 컴포넌트 |
-| T{n}.tsx | remotion/src/transitions/T{n}.tsx | 전환 컴포넌트 |
 
 ---
 
 ## 핵심 규칙
 
-### 1. 투명 배경 필수
+### 1. 배경 이미지 포함 필수
 
 ```tsx
-// 필수
-<AbsoluteFill style={{ backgroundColor: "transparent" }}>
+import { Img, staticFile } from "remotion";
+import { cameraZoom } from "../lib/animations";
+import { Z_INDEX } from "../lib/styles";
 
-// 금지
-<AbsoluteFill style={{ backgroundColor: "#1a1a2e" }}>
+// 배경 레이어 (Ken Burns 효과 적용)
+const bgScale = cameraZoom(frame, 0, durationInFrames, 1.0, 1.08);
+
+<AbsoluteFill>
+  {/* Layer 0: 배경 이미지 (최하단) */}
+  <AbsoluteFill style={{ zIndex: Z_INDEX.background }}>
+    <Img
+      src={staticFile("assets/backgrounds/bg_s{n}.png")}
+      style={{
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
+        transform: `scale(${bgScale})`,
+        transformOrigin: "center center",
+      }}
+    />
+    {/* 다크 오버레이 (가독성 향상, 선택사항) */}
+    <div
+      style={{
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(0, 0, 0, 0.2)",
+      }}
+    />
+  </AbsoluteFill>
+
+  {/* Layer 1: 콘텐츠 요소 */}
+  {/* ... */}
+
+  {/* Layer 2: 자막 (최상단) */}
+  {/* ... */}
+</AbsoluteFill>
 ```
 
-배경은 FFmpeg에서 합성합니다. Remotion은 **오버레이 요소만** 렌더링!
+> 배경 이미지는 Remotion에서 직접 렌더링합니다. FFmpeg 합성 단계가 생략됩니다.
 
 ### 2. 자막은 Remotion에서 처리
 
@@ -305,7 +449,39 @@ import {
 <div style={{ bottom: "25%" }}>질문 박스</div>
 ```
 
-### 5. interpolate 필수 옵션
+### 5. 텍스트 줄바꿈 규칙
+
+| 상황 | 스타일 | 예시 |
+|------|--------|------|
+| 짧은 레이블 (배지, 태그) | `whiteSpace: "nowrap"` | "💩 담으면", "👑 담으면" |
+| 박스 안 짧은 텍스트 | 부모에 `whiteSpace: "nowrap"` | "상당히 큰 크기!", 정보 카드 |
+| 긴 설명 텍스트 | 기본값 (자동 줄바꿈) | 본문, 긴 설명 |
+| 명시적 줄바꿈 필요 | `\n` + `whiteSpace: "pre-line"` | 여러 줄 강제 분리 |
+
+```tsx
+// 짧은 레이블 - 한 줄 유지
+<div style={{
+  padding: "4px 12px",
+  background: "#8B4513",
+  borderRadius: 10,
+  whiteSpace: "nowrap",  // 필수!
+}}>
+  💩 담으면
+</div>
+
+// 박스 안 텍스트 - 부모에 적용
+<div style={{
+  padding: "8px 25px",
+  border: "3px solid gold",
+  whiteSpace: "nowrap",  // 부모에 적용
+}}>
+  <div style={{ fontSize: FONT_SIZES.subtitle }}>
+    상당히 큰 크기!
+  </div>
+</div>
+```
+
+### 6. interpolate 필수 옵션
 
 ```tsx
 import { interpolate } from "remotion";
@@ -320,7 +496,7 @@ const opacity = interpolate(frame, [0, 15], [0, 1], {
 const opacity = interpolate(frame, [0, 15], [0, 1]);
 ```
 
-### 6. Easing 규칙
+### 7. Easing 규칙
 
 ```tsx
 import { Easing } from "remotion";
@@ -334,7 +510,7 @@ easing: Easing.bezier(0.65, 0, 0.35, 1)   // easeInOutCubic
 
 ---
 
-## 씬 컴포넌트 템플릿
+## 씬 컴포넌트 템플릿 (배경 포함 버전)
 
 ```tsx
 // remotion/src/scenes/S1.tsx
@@ -345,18 +521,19 @@ import {
   useVideoConfig,
   Img,
   staticFile,
-  interpolate,
-  Easing,
 } from "remotion";
 import {
   FONT_SIZES,
   IMAGE_SIZES,
+  CAPTION_STYLE,
   CAPTION_STROKE,
-  TEXT_STROKE,
   FONTS,
-  COLORS,
   Z_INDEX,
 } from "../lib/styles";
+import { fadeIn, cameraZoom } from "../lib/animations";
+
+// Scene S1: hook - 영하 20도 인트로
+// Duration: 5.8 seconds
 
 // 자막 데이터
 const captions = [
@@ -375,77 +552,98 @@ export const S1: React.FC = () => {
     (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  // 애니메이션: thermometer fadeIn
-  const thermometerOpacity = interpolate(frame, [0, 15], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  // ========================================
+  // 배경 애니메이션 (Ken Burns 효과)
+  // ========================================
+  const bgScale = cameraZoom(frame, 0, durationInFrames, 1.0, 1.08);
 
-  // 애니메이션: camera zoom
-  const zoom = interpolate(frame, [0, durationInFrames], [1, 1.1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.33, 1, 0.68, 1),
-  });
+  // ========================================
+  // 콘텐츠 애니메이션
+  // ========================================
+  const thermometerOpacity = fadeIn(frame, 0, 15);
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
-      {/* 카메라 줌 컨테이너 */}
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          transform: `scale(${zoom})`,
-          transformOrigin: "center center",
-        }}
-      >
-        {/* 온도계 아이콘 */}
+    <AbsoluteFill>
+      {/* ========================================
+          Layer 0: 배경 이미지 (최하단)
+          ======================================== */}
+      <AbsoluteFill style={{ zIndex: Z_INDEX.background }}>
         <Img
-          src={staticFile("assets/icons/thermometer_icon.png")}
+          src={staticFile("assets/backgrounds/bg_s1.png")}
           style={{
-            position: "absolute",
-            right: 200,
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: IMAGE_SIZES.icon,
-            opacity: thermometerOpacity,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: `scale(${bgScale})`,
+            transformOrigin: "center center",
           }}
         />
-
-        {/* -20 텍스트 */}
+        {/* 다크 오버레이 (가독성 향상, 선택사항) */}
         <div
           style={{
             position: "absolute",
-            right: 220,
-            top: "50%",
-            transform: "translateY(-50%) translateY(100px)",
-            fontSize: FONT_SIZES.highlight,
-            fontFamily: FONTS.primary,
-            fontWeight: 700,
-            color: "#4FC3F7",
-            opacity: thermometerOpacity,
-            textShadow: "0 0 20px rgba(79, 195, 247, 0.5)",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.2)",
           }}
-        >
-          -20°
-        </div>
+        />
+      </AbsoluteFill>
+
+      {/* ========================================
+          Layer 1: 콘텐츠 요소
+          ======================================== */}
+      {/* 온도계 아이콘 */}
+      <Img
+        src={staticFile("assets/icons/thermometer_icon.png")}
+        style={{
+          position: "absolute",
+          right: 200,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: IMAGE_SIZES.icon,
+          opacity: thermometerOpacity,
+          zIndex: Z_INDEX.content,
+        }}
+      />
+
+      {/* -20 텍스트 */}
+      <div
+        style={{
+          position: "absolute",
+          right: 220,
+          top: "50%",
+          transform: "translateY(-50%) translateY(100px)",
+          fontSize: FONT_SIZES.highlight,
+          fontFamily: FONTS.primary,
+          fontWeight: 700,
+          color: "#4FC3F7",
+          opacity: thermometerOpacity,
+          textShadow: "0 0 20px rgba(79, 195, 247, 0.5)",
+          zIndex: Z_INDEX.content,
+        }}
+      >
+        -20°
       </div>
 
-      {/* 자막 (항상 최상단, 흰테두리 + 검정글자) */}
+      {/* ========================================
+          Layer 2: 자막 (최상단)
+          ======================================== */}
       {currentCaption && (
         <div
           style={{
             position: "absolute",
-            bottom: 40,
+            bottom: CAPTION_STYLE.bottom,
             left: 0,
             right: 0,
             textAlign: "center",
-            fontSize: FONT_SIZES.caption,
-            fontFamily: FONTS.primary,
-            fontWeight: 600,
-            color: "#000000",
-            textShadow: `${CAPTION_STROKE}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
-            padding: "0 40px",
+            fontSize: CAPTION_STYLE.fontSize,
+            fontFamily: CAPTION_STYLE.fontFamily,
+            fontWeight: CAPTION_STYLE.fontWeight,
+            color: CAPTION_STYLE.color,
+            textShadow: CAPTION_STROKE,
+            padding: CAPTION_STYLE.padding,
             zIndex: Z_INDEX.caption,
           }}
         >
@@ -461,130 +659,84 @@ export default S1;
 
 ---
 
-## 전환 컴포넌트 템플릿
+<!--
+## 전환 컴포넌트 템플릿 (사용 안함)
 
-```tsx
-// remotion/src/transitions/T1.tsx
-import React from "react";
-import {
-  AbsoluteFill,
-  useCurrentFrame,
-  useVideoConfig,
-  interpolate,
-  Easing,
-} from "remotion";
-import { FONT_SIZES, TEXT_STROKE, FONTS } from "../lib/styles";
-
-// 전환 텍스트 (script.json에서)
-const transitionText = "그 시작은...";
-
-export const T1: React.FC = () => {
-  const frame = useCurrentFrame();
-  const { fps, durationInFrames } = useVideoConfig();
-
-  // 페이드인 (0 ~ 0.5초)
-  const fadeIn = interpolate(frame, [0, fps * 0.5], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  // 페이드아웃 (마지막 0.5초)
-  const fadeOut = interpolate(
-    frame,
-    [durationInFrames - fps * 0.5, durationInFrames],
-    [1, 0],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
-
-  const opacity = Math.min(fadeIn, fadeOut);
-
-  // 살짝 위로 이동
-  const translateY = interpolate(frame, [0, durationInFrames], [20, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.33, 1, 0.68, 1),
-  });
-
-  return (
-    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
-      <div
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: `translate(-50%, -50%) translateY(${translateY}px)`,
-          fontSize: FONT_SIZES.title,
-          fontFamily: FONTS.primary,
-          fontWeight: 700,
-          color: "#FFFFFF",
-          opacity,
-          textShadow: `${TEXT_STROKE}, 0 0 30px rgba(0,0,0,0.9)`,
-          textAlign: "center",
-          maxWidth: "80%",
-        }}
-      >
-        {transitionText}
-      </div>
-    </AbsoluteFill>
-  );
-};
-
-export default T1;
-```
+> 전환 컴포넌트는 사용하지 않습니다. 섹션 간 연결은 FFmpeg에서 처리합니다.
+-->
 
 ---
 
 ## 애니메이션 패턴
 
-### fadeIn
+> **권장: `animations.ts` 유틸리티 사용** (코드 간결, 일관성)
+
+### fadeIn / fadeOut
 
 ```tsx
+// ✅ 권장: animations.ts 사용
+import { fadeIn, fadeOut } from "../lib/animations";
+const opacity = fadeIn(frame, 0, 15);
+const outOpacity = fadeOut(frame, durationInFrames - 15, 15);
+
+// ⚠️ 직접 작성 (복잡한 경우만)
 const opacity = interpolate(frame, [0, 15], [0, 1], {
   extrapolateRight: "clamp",
 });
 ```
 
-### fadeOut (마지막 15프레임)
-
-```tsx
-const opacity = interpolate(
-  frame,
-  [durationInFrames - 15, durationInFrames],
-  [1, 0],
-  { extrapolateLeft: "clamp" }
-);
-```
-
 ### popUp (탄성 등장)
 
 ```tsx
+// ✅ 권장: animations.ts 사용
+import { scaleIn } from "../lib/animations";
+const scale = scaleIn(frame, 0, 20);
+
+// ⚠️ 직접 작성 (특수 easing 필요시)
 const scale = interpolate(frame, [0, 20], [0, 1], {
   extrapolateRight: "clamp",
   easing: Easing.bezier(0.34, 1.56, 0.64, 1), // overshoot
 });
 ```
 
-### slideIn (왼쪽에서)
+### slideIn (왼쪽/오른쪽에서)
 
 ```tsx
+// ✅ 권장: animations.ts 사용
+import { slideInLeft, slideInRight } from "../lib/animations";
+const x = slideInLeft(frame, 0, 24, 300);  // 왼쪽에서 300px 이동
+const x = slideInRight(frame, 0, 24);       // 오른쪽에서 (기본 200px)
+
+// ⚠️ 직접 작성
 const x = interpolate(frame, [0, 24], [-300, 0], {
   extrapolateRight: "clamp",
   easing: Easing.bezier(0.33, 1, 0.68, 1),
 });
 ```
 
-### camera zoom
+### camera zoom / pan
 
 ```tsx
+// ✅ 권장: animations.ts 사용
+import { cameraZoom, cameraPan } from "../lib/animations";
+const zoom = cameraZoom(frame, 0, durationInFrames, 1, 1.2);
+const { x, y } = cameraPan(frame, 0, 60, 0, 100, 0, 50);
+
+<div style={{ transform: `scale(${zoom}) translate(${x}px, ${y}px)` }}>
+
+// ⚠️ 직접 작성
 const zoom = interpolate(frame, [60, 120], [1, 1.3], {
   extrapolateLeft: "clamp",
   extrapolateRight: "clamp",
 });
+```
 
-<div style={{ transform: `scale(${zoom})` }}>
+### pulse (반복 애니메이션)
+
+```tsx
+// ✅ animations.ts 사용
+import { pulse } from "../lib/animations";
+const scale = pulse(frame, 0, 30, 1, 1.1);  // 30프레임 주기로 1~1.1 진동
 ```
 
 ---
@@ -604,17 +756,7 @@ staticFile("assets/maps/korea_map.png")
 
 ## 금지 사항
 
-### 1. 배경 포함 금지
-
-```tsx
-// 금지: 배경색
-style={{ backgroundColor: "#1a1a2e" }}
-
-// 금지: 배경 이미지
-<Img src={staticFile("assets/backgrounds/...")} style={{ ... }} />
-```
-
-### 2. CSS 애니메이션 금지
+### 1. CSS 애니메이션 금지
 
 ```tsx
 // 금지: CSS transition
@@ -627,7 +769,7 @@ style={{ animation: "fadeIn 1s" }}
 const opacity = interpolate(frame, [0, 15], [0, 1], {...});
 ```
 
-### 3. Hook 규칙 준수
+### 2. Hook 규칙 준수
 
 ```tsx
 // 금지: 조건문 안에서 Hook
@@ -642,7 +784,7 @@ if (condition) {
 }
 ```
 
-### 4. 숫자 하드코딩 금지!
+### 3. 숫자 하드코딩 금지!
 
 ```tsx
 // 금지: 숫자 직접 사용
@@ -716,34 +858,13 @@ import { T1 } from "./transitions/T1";
 }
 ```
 
-### 전환 컴포넌트 매핑 (동적)
+### 전환 처리 (사용 안함)
 
-> **전환 개수는 섹션 수에 따라 달라짐!**
-
-**동적 매핑 규칙:**
-```
-섹션 목록: [s1, s2, s3, ..., sN]
-전환 목록: T1 = s1→s2, T2 = s2→s3, ..., T(N-1) = s(N-1)→sN
-```
-
-**예시 (11개 섹션인 경우):**
-
-| 전환 | 컴포넌트 | 담당 섹션 |
-|------|----------|-----------|
-| hook → background | T1.tsx | hook |
-| background → core1 | T2.tsx | background |
-| core1 → core2 | T3.tsx | core1 |
-| core2 → core3 | T4.tsx | core2 |
-| core3 → core4 | T5.tsx | core3 |
-| core4 → core5 | T6.tsx | core4 |
-| core5 → core6 | T7.tsx | core5 |
-| core6 → core7 | T8.tsx | core6 |
-| core7 → insight | T9.tsx | core7 |
-| insight → outro | T10.tsx | insight |
-
-**전환 텍스트 위치:**
-- `reading_script.json`의 `transitions` 배열에서 확인
-- 전환이 없으면 기본 텍스트 사용 또는 생략
+> ⚠️ **전환 컴포넌트는 생성하지 않습니다.**
+>
+> 섹션 간 연결은 FFmpeg에서 처리합니다:
+> - 섹션 마지막에 gap 추가 (기본 1초)
+> - 마지막 프레임 유지로 자연스러운 전환
 
 ---
 
@@ -751,7 +872,7 @@ import { T1 } from "./transitions/T1";
 
 ### 코드 구조
 - [ ] **styles.ts를 import 했는가?**
-- [ ] 투명 배경 설정했는가?
+- [ ] **배경 이미지 레이어를 추가했는가?** (Z_INDEX.background)
 - [ ] useCurrentFrame/useVideoConfig를 최상위에서 호출했는가?
 - [ ] 모든 interpolate에 extrapolate 옵션이 있는가?
 - [ ] 에셋 경로가 asset_catalog.csv과 일치하는가?

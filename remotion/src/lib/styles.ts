@@ -51,6 +51,25 @@ export const IMAGE_SIZES = {
 } as const;
 
 // ============================================================
+// 이모지/요소 크기 비율 (화면 너비 기준)
+// ============================================================
+// 사용법: const { width } = useVideoConfig();
+//        const size = width * ELEMENT_SCALE.emojiLarge;
+export const ELEMENT_SCALE = {
+  // 이모지 크기 (화면 너비 기준 비율)
+  emojiSmall: 0.03,    // ~58px (1920의 3%)
+  emoji: 0.05,         // ~96px (1920의 5%)
+  emojiLarge: 0.08,    // ~154px (1920의 8%)
+  emojiHero: 0.10,     // ~192px (1920의 10%) - 크기 비교용
+
+  // 이미지 크기 (화면 너비 기준 비율)
+  imageSmall: 0.08,    // ~154px
+  image: 0.12,         // ~230px
+  imageLarge: 0.15,    // ~288px
+  imageHero: 0.18,     // ~346px - 메인 강조용
+} as const;
+
+// ============================================================
 // 자막 스타일
 // ============================================================
 export const CAPTION_STYLE = {
