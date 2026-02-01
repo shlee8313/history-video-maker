@@ -1,8 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Skill(history-script-writer)",
-      "Skill(history-script-writer:*)",
       "Bash(python history_maker.py:*)",
       "Bash(python:*)",
       "Bash(if not exist \"C:\\\\PROJECT\\\\HISTORY_VIDEO_MAKER\\\\assets\" mkdir \"C:\\\\PROJECT\\\\HISTORY_VIDEO_MAKER\\\\assets\")",
