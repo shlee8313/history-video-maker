@@ -122,9 +122,8 @@ scenes.json의 meta.sections 키 목록을 순회하며 호출
 
 | 에이전트 | 세션 분리 시점 |
 |----------|---------------|
-| **scene-director** | 모든 섹션 완료 후 |
-| **scene-splitter** | 전체 완료 후 |
-| **audio-splitter** | 전체 완료 후 |
+| **scene-director** | 전체 완료 후 (1회 호출) |
+| **scene-splitter** | 전체 완료 후 (1회 호출) |
 | **scene-coder** | **Part별** 완료 후 (state.json의 parts 참조) |
 
 ---
@@ -166,7 +165,6 @@ HISTORY_VIDEO_MAKER/
 │   │
 │   └── agents/
 │       ├── scene-director.md    # 씬 분할 에이전트
-│       ├── audio-splitter.md    # 오디오 분할 시점 결정 에이전트
 │       ├── scene-splitter.md    # 자막 타이밍 에이전트
 │       └── scene-coder.md       # Remotion 코드 에이전트
 │
@@ -482,7 +480,7 @@ updated_at: {현재 시간}
 ### Phase 3: AUDIO (음성 + 타이밍)
 
 ```
-담당: Python CLI + scene-splitter 에이전트 + audio-splitter 에이전트
+담당: Python CLI + scene-splitter 에이전트
 ```
 
 **Step 3-1: TTS 생성 (Python)**
@@ -494,17 +492,11 @@ python pipeline.py audio --voice nova
 
 **Step 3-2: 자막 타이밍 매칭 (에이전트)**
 ```
-scene-splitter 에이전트 × 섹션 수만큼 순차 호출
+scene-splitter 에이전트 1회 호출
 ```
 - Whisper words ↔ subtitle_segments 의미적 매칭
-- 출력: `output/2_audio/s{n}_timed.json`, `output/2_audio/s{n}.srt`
-
-**Step 3-3: 오디오 분할 시점 결정 (에이전트)**
-```
-audio-splitter 에이전트: 섹션별 오디오를 씬 단위로 분할할 시점 결정
-```
-- 입력: `scenes_{section}.json`, `{section}_timestamps.json`, `scenes.json`
-- 출력: `split_points_{section}.json`
+- 모든 섹션/씬을 한 번에 처리
+- 출력: `output/2_audio/s{n}_timed.json`
 
 **s{n}_timed.json 구조:**
 ```json
@@ -532,10 +524,13 @@ updated_at: {현재 시간}
 
 ```
 담당: scene-coder 에이전트
-참조:
+참조 (필수 읽기!):
   - remotion/src/lib/styles.ts (크기/스타일 상수 - 필수 import!)
   - remotion/src/lib/animations.ts (공통 애니메이션 유틸리티 - 권장 import)
   - .claude/skills/remotion/SKILL.md (Remotion 베스트 프랙티스)
+  - .claude/skills/remotion/rules/animations.md (애니메이션 패턴)
+  - .claude/skills/remotion/rules/timing.md (interpolate 사용법)
+  - .claude/skills/remotion/rules/assets.md (에셋 로딩)
 입력: s{n}_timed.json + s{n}.json + asset_catalog.csv
 출력:
   - remotion/src/scenes/S1.tsx ~ SN.tsx
@@ -724,8 +719,7 @@ updated_at: {현재 시간}
 
 # Phase 3: 오디오
 python pipeline.py audio --voice nova   # TTS + Whisper
-# → audio-splitter 에이전트 (오디오 분할 시점)
-# → scene-splitter 에이전트 × 섹션 수만큼 순차 호출
+# → scene-splitter 에이전트 1회 호출 (자막 타이밍)
 
 # Phase 4: 코드
 # → scene-coder 에이전트 × Part 단위 호출
@@ -776,18 +770,12 @@ python pipeline.py status               # 프로젝트 상태 확인
 → 검증 후 asset_catalog.csv 업데이트
 ```
 
-### scene-splitter (Phase 3, 순차)
+### scene-splitter (Phase 3, 1회 호출)
 ```
-섹션 목록을 scenes.json에서 동적으로 읽어서 순차 호출:
-
-1. scenes.json의 meta.sections 키 목록 확인
-2. 각 섹션별로 순차 호출:
-   "{섹션명} 섹션 scene-splitter 실행"
-
-예시 (core7까지 있는 경우):
-→ hook, background, core1, core2, core3, core4, core5, core6, core7, insight, outro
-→ 총 11개 섹션 순차 호출
+"scene-splitter 에이전트로 자막 타이밍 매칭 실행"
 ```
+- 1회 호출로 모든 씬의 타이밍 매칭 처리
+- 모든 섹션의 whisper.json → 모든 s{n}_timed.json 출력
 
 ### scene-coder (Phase 4, Part 단위 호출)
 

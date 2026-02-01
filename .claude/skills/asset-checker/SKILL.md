@@ -52,6 +52,50 @@ output/1_scripts/bg_prompts.json     # 배경 프롬프트 (Phase 2에서 생성
 output/1_scripts/scenes.json         # 전체 씬 목록
 ```
 
+---
+
+## ⚠️ 토큰 절약: elements 필드만 추출
+
+> **s{n}.json 전체를 읽지 마세요!** elements 필드만 필요합니다.
+
+### 권장 방법: jq로 elements만 추출
+
+```bash
+# 모든 씬의 elements를 한 번에 추출
+for f in output/1_scripts/s*.json; do
+  echo "=== $(basename $f) ==="
+  cat "$f" | python -c "import sys,json; d=json.load(sys.stdin); print(json.dumps(d.get('elements',[]),indent=2))"
+done
+```
+
+### 또는 Python으로 일괄 추출
+
+```python
+import json
+from pathlib import Path
+
+elements_by_scene = {}
+for f in sorted(Path("output/1_scripts").glob("s*.json")):
+    if f.name.startswith("scenes"):  # scenes.json 제외
+        continue
+    with open(f) as fp:
+        data = json.load(fp)
+        elements_by_scene[f.stem] = data.get("elements", [])
+
+# 결과: {"s1": [...], "s2": [...], ...}
+```
+
+### 읽어야 할 것 vs 읽지 말 것
+
+| 파일/필드 | 읽기 | 이유 |
+|-----------|------|------|
+| `scenes.json` | ✅ 전체 | 씬 목록, 섹션 정보 |
+| `bg_prompts.json` | ✅ 전체 | 배경 프롬프트 |
+| `s{n}.json` → `elements` | ✅ 필드만 | 에셋 목록 |
+| `s{n}.json` → `narration` | ❌ | 불필요 |
+| `s{n}.json` → `subtitle_segments` | ❌ | 불필요 |
+| `s{n}.json` → `animation_hints` | ❌ | 불필요 |
+
 ## 출력 파일
 
 ```

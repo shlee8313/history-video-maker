@@ -1,51 +1,32 @@
+// remotion/src/scenes/S6.tsx
 import React from "react";
 import {
   AbsoluteFill,
   useCurrentFrame,
   useVideoConfig,
+  Img,
+  staticFile,
   interpolate,
-  Easing,
 } from "remotion";
+import {
+  FONT_SIZES,
+  IMAGE_SIZES,
+  CAPTION_STYLE,
+  CAPTION_STROKE,
+  TEXT_STROKE,
+  FONTS,
+  Z_INDEX,
+} from "../lib/styles";
+import { fadeIn, fadeOut, cameraZoom, scaleIn, pulse } from "../lib/animations";
 
-// 자막용 흰 테두리
-const captionStroke = `
-  -2px -2px 0 #FFF,
-   2px -2px 0 #FFF,
-  -2px  2px 0 #FFF,
-   2px  2px 0 #FFF,
-  -3px  0   0 #FFF,
-   3px  0   0 #FFF,
-   0   -3px 0 #FFF,
-   0    3px 0 #FFF
-`;
+// Scene S6: outro - 따뜻한 마무리
+// Duration: 6.78 seconds (204 frames)
 
-// 일반 텍스트용 검은 테두리
-const textStroke = `
-  -2px -2px 0 #000,
-   2px -2px 0 #000,
-  -2px  2px 0 #000,
-   2px  2px 0 #000,
-  -3px  0   0 #000,
-   3px  0   0 #000,
-   0   -3px 0 #000,
-   0    3px 0 #000
-`;
-
-// 자막 데이터 (s6_timed.json - 상대 시간으로 변환, scene_start: 13.98)
+// 자막 데이터 (s6_timed.json 기반)
 const captions = [
-  { text: "그런데 18세기에 이르면 상황이 완전히 달라집니다.", start: 0.0, end: 3.40 },
-  { text: "한양의 인구는 무려 20만 명으로 두 배 가까이 폭증했습니다.", start: 3.88, end: 7.46 },
-  { text: "같은 시기 1785년 영국에서 인구 5만 명을 넘긴 도시가", start: 8.26, end: 13.34 },
-  { text: "런던, 맨체스터, 버밍엄, 리즈 단 네 곳뿐이었다는 점을 생각하면,", start: 13.34, end: 18.08 },
-  { text: "한양은 당시 세계에서 손꼽히는 대도시였던 겁니다.", start: 18.18, end: 22.40 },
-];
-
-// 영국 도시 데이터 (비교용)
-const ukCities = [
-  { name: "런던", population: 95 },
-  { name: "맨체스터", population: 7 },
-  { name: "버밍엄", population: 5.5 },
-  { name: "리즈", population: 5 },
+  { text: "냉장고가 당연한 오늘날,", start: 0.0, end: 1.84 },
+  { text: "얼음 한 조각의 가치를 다시 생각하게 되네요.", start: 2.1, end: 4.94 },
+  { text: "테스트 채널이었습니다!", start: 5.78, end: 6.78 },
 ];
 
 export const S6: React.FC = () => {
@@ -58,397 +39,252 @@ export const S6: React.FC = () => {
     (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  // 18세기 연도 표시
-  const yearOpacity = interpolate(frame, [0, 20], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  // ========================================
+  // 배경 애니메이션 (gentle zoom out for closure)
+  // ========================================
+  const bgScale = cameraZoom(frame, 0, durationInFrames, 1.08, 1.0);
 
-  // 인구 그래프 애니메이션 (10만 → 20만)
-  const graphStartFrame = 3.88 * fps;
-  const graphEndFrame = 7 * fps;
+  // ========================================
+  // 콘텐츠 애니메이션
+  // ========================================
 
-  // 왼쪽 막대 (10만)
-  const bar1Height = 180;
-  const bar1Opacity = interpolate(
+  // 냉장고: fadeIn with door open hint
+  const fridgeOpacity = fadeIn(frame, 0, 30);
+  const fridgeScale = scaleIn(frame, 0, 35, 0.95, 1);
+  // Subtle light glow from inside
+  const fridgeGlow = pulse(frame, 0, 90, 0.3, 0.6);
+
+  // 얼음 조각: popIn with nostalgic glow (when "얼음 한 조각" mentioned)
+  const iceStartFrame = Math.round(2.1 * fps);
+  const iceOpacity = fadeIn(frame, iceStartFrame, 25);
+  const iceScale = scaleIn(frame, iceStartFrame, 30);
+  // Nostalgic warm glow
+  const iceGlow = pulse(frame, iceStartFrame, 50, 0.4, 0.8);
+
+  // 채널명 로고: fadeIn at end with subtle animation
+  const logoStartFrame = Math.round(5.0 * fps);
+  const logoOpacity = fadeIn(frame, logoStartFrame, 20);
+  const logoScale = scaleIn(frame, logoStartFrame, 25, 0.9, 1);
+  // Subtle pulse
+  const logoPulse = pulse(frame, logoStartFrame, 60, 0.98, 1.02);
+
+  // Overall warm vignette effect (increases toward end)
+  const vignetteOpacity = interpolate(
     frame,
-    [graphStartFrame, graphStartFrame + 15],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
+    [0, durationInFrames * 0.7, durationInFrames],
+    [0, 0.1, 0.2],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
 
-  // 오른쪽 막대 (20만) - 성장 애니메이션
-  const bar2Progress = interpolate(
-    frame,
-    [graphStartFrame + 20, graphEndFrame],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.33, 1, 0.68, 1),
-    }
-  );
-  const bar2Height = bar1Height + bar1Height * bar2Progress;
-  const bar2Opacity = interpolate(
-    frame,
-    [graphStartFrame + 15, graphStartFrame + 30],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
-
-  // 영국 비교 차트 (8.26초부터)
-  const comparisonStartFrame = 8.26 * fps;
-  const comparisonOpacity = interpolate(
-    frame,
-    [comparisonStartFrame, comparisonStartFrame + 20],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
-
-  // 한양 강조 (18.18초부터)
-  const hanyangHighlightStart = 18.18 * fps;
-  const hanyangGlow = interpolate(
-    frame,
-    [hanyangHighlightStart, hanyangHighlightStart + 20],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
-  const hanyangScale = interpolate(
-    frame,
-    [hanyangHighlightStart, hanyangHighlightStart + 20],
-    [0.5, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
-    }
-  );
-
-  // 글로우 펄스
-  const glowPulse = Math.sin(frame * 0.1) * 0.3 + 0.7;
+  // Sparkle effects for ice
+  const sparkle1 = pulse(frame, iceStartFrame + 10, 35, 0.2, 1);
+  const sparkle2 = pulse(frame, iceStartFrame + 20, 40, 0.3, 0.9);
+  const sparkle3 = pulse(frame, iceStartFrame + 30, 45, 0.1, 0.8);
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
-      {/* 18세기 연도 표시 */}
-      <div
-        style={{
-          position: "absolute",
-          top: "8%",
-          left: "8%",
-          opacity: yearOpacity,
-        }}
-      >
-        <div
+    <AbsoluteFill>
+      {/* ========================================
+          Layer 0: 배경 이미지 (최하단)
+          ======================================== */}
+      <AbsoluteFill style={{ zIndex: Z_INDEX.background }}>
+        <Img
+          src={staticFile("assets/backgrounds/bg_s6.png")}
           style={{
-            fontSize: 72,
-            fontFamily: "Pretendard, sans-serif",
-            fontWeight: 700,
-            color: "#D4AF37",
-            textShadow: `${textStroke}, 0 0 20px rgba(212, 175, 55, 0.5)`,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: `scale(${bgScale})`,
+            transformOrigin: "center center",
           }}
-        >
-          18세기
-        </div>
-      </div>
-
-      {/* 인구 비교 그래프 */}
-      <div
-        style={{
-          position: "absolute",
-          top: "25%",
-          left: "8%",
-          display: "flex",
-          alignItems: "flex-end",
-          gap: 60,
-        }}
-      >
-        {/* 15세기 (10만) */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            opacity: bar1Opacity,
-          }}
-        >
-          <div
-            style={{
-              width: 100,
-              height: bar1Height,
-              background: "linear-gradient(180deg, #8B4513 0%, #5D2E0C 100%)",
-              borderRadius: "10px 10px 0 0",
-              boxShadow: "0 4px 15px rgba(0, 0, 0, 0.4)",
-            }}
-          />
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 32,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 600,
-              color: "#FFFFFF",
-              textShadow: textStroke,
-            }}
-          >
-            15세기
-          </div>
-          <div
-            style={{
-              fontSize: 40,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 700,
-              color: "#8B4513",
-              textShadow: captionStroke,
-            }}
-          >
-            10만명
-          </div>
-        </div>
-
-        {/* 화살표 */}
-        <div
-          style={{
-            fontSize: 60,
-            color: "#FFD700",
-            textShadow: `0 0 15px rgba(255, 215, 0, ${glowPulse})`,
-            marginBottom: 80,
-            opacity: bar2Opacity,
-          }}
-        >
-          →
-        </div>
-
-        {/* 18세기 (20만) */}
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            opacity: bar2Opacity,
-          }}
-        >
-          <div
-            style={{
-              width: 100,
-              height: bar2Height,
-              background: "linear-gradient(180deg, #FFD700 0%, #CC9900 100%)",
-              borderRadius: "10px 10px 0 0",
-              boxShadow: `0 4px 20px rgba(255, 215, 0, ${glowPulse})`,
-            }}
-          />
-          <div
-            style={{
-              marginTop: 12,
-              fontSize: 32,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 600,
-              color: "#FFFFFF",
-              textShadow: textStroke,
-            }}
-          >
-            18세기
-          </div>
-          <div
-            style={{
-              fontSize: 48,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 800,
-              color: "#FFD700",
-              textShadow: textStroke,
-            }}
-          >
-            20만명
-          </div>
-
-          {/* x2 강조 */}
-          <div
-            style={{
-              position: "absolute",
-              top: -40,
-              right: -60,
-              fontSize: 56,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 800,
-              color: "#FF6B35",
-              textShadow: `${textStroke}, 0 0 20px rgba(255, 107, 53, 0.8)`,
-              opacity: bar2Progress,
-            }}
-          >
-            x2
-          </div>
-        </div>
-      </div>
-
-      {/* 영국 비교 차트 */}
-      {frame >= comparisonStartFrame && (
+        />
+        {/* Warm overlay for cozy feeling */}
         <div
           style={{
             position: "absolute",
-            right: "6%",
-            top: "20%",
-            opacity: comparisonOpacity,
-            backgroundColor: "rgba(0, 0, 0, 0.75)",
-            padding: "25px 35px",
-            borderRadius: 20,
-            border: "2px solid #D4AF37",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 32,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 700,
-              color: "#D4AF37",
-              marginBottom: 15,
-              textAlign: "center",
-            }}
-          >
-            1785년 영국
-          </div>
-          <div
-            style={{
-              fontSize: 24,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 500,
-              color: "#CCCCCC",
-              marginBottom: 12,
-            }}
-          >
-            인구 5만 이상 도시:
-          </div>
-          {ukCities.map((city, index) => {
-            const cityDelay = comparisonStartFrame + (index + 1) * 8;
-            const cityOpacity = interpolate(
-              frame,
-              [cityDelay, cityDelay + 10],
-              [0, 1],
-              {
-                extrapolateLeft: "clamp",
-                extrapolateRight: "clamp",
-              }
-            );
-            const barWidth = interpolate(
-              frame,
-              [cityDelay, cityDelay + 15],
-              [0, city.population * 2],
-              {
-                extrapolateLeft: "clamp",
-                extrapolateRight: "clamp",
-                easing: Easing.bezier(0.33, 1, 0.68, 1),
-              }
-            );
-            return (
-              <div
-                key={city.name}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 12,
-                  marginBottom: 10,
-                  opacity: cityOpacity,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 28,
-                    fontFamily: "Pretendard, sans-serif",
-                    fontWeight: 500,
-                    color: "#FFFFFF",
-                    width: 110,
-                  }}
-                >
-                  {index + 1}. {city.name}
-                </span>
-                <div
-                  style={{
-                    width: barWidth,
-                    height: 20,
-                    background: "linear-gradient(90deg, #4A90D9 0%, #2E5A8C 100%)",
-                    borderRadius: 5,
-                  }}
-                />
-              </div>
-            );
-          })}
-          <div
-            style={{
-              marginTop: 15,
-              fontSize: 36,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 700,
-              color: "#FF6B6B",
-              textAlign: "center",
-            }}
-          >
-            단 4곳!
-          </div>
-        </div>
-      )}
-
-      {/* 한양 = 세계적 대도시 강조 */}
-      {frame >= hanyangHighlightStart && (
-        <div
-          style={{
-            position: "absolute",
-            bottom: "28%",
+            top: 0,
             left: 0,
             right: 0,
-            textAlign: "center",
-            opacity: hanyangGlow,
-            transform: `scale(${hanyangScale})`,
+            bottom: 0,
+            background: `rgba(255, 200, 150, ${0.1 + vignetteOpacity * 0.5})`,
+            mixBlendMode: "overlay",
+          }}
+        />
+        {/* Vignette effect */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, ${vignetteOpacity + 0.2}) 100%)`,
+          }}
+        />
+      </AbsoluteFill>
+
+      {/* ========================================
+          Layer 1: 콘텐츠 요소
+          ======================================== */}
+
+      {/* 냉장고 (center-left) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "30%",
+          top: "42%",
+          transform: `translate(-50%, -50%) scale(${fridgeScale})`,
+          opacity: fridgeOpacity,
+          zIndex: Z_INDEX.content,
+        }}
+      >
+        {/* Inner light glow */}
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "40%",
+            transform: "translate(-50%, -50%)",
+            width: IMAGE_SIZES.iconLarge + 100,
+            height: IMAGE_SIZES.iconLarge + 100,
+            background: `radial-gradient(circle, rgba(200, 230, 255, ${fridgeGlow}) 0%, transparent 60%)`,
+            borderRadius: "50%",
+            zIndex: -1,
+          }}
+        />
+        <Img
+          src={staticFile("assets/icons/refrigerator.png")}
+          style={{
+            width: IMAGE_SIZES.iconLarge + 40,
+            filter: `drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 ${20 * fridgeGlow}px rgba(200, 230, 255, ${fridgeGlow * 0.5}))`,
+          }}
+        />
+      </div>
+
+      {/* 얼음 조각 (center) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "58%",
+          top: "42%",
+          transform: `translate(-50%, -50%) scale(${iceScale})`,
+          opacity: iceOpacity,
+          zIndex: Z_INDEX.content,
+        }}
+      >
+        {/* Nostalgic warm glow */}
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            width: IMAGE_SIZES.icon + 80,
+            height: IMAGE_SIZES.icon + 80,
+            background: `radial-gradient(circle, rgba(255, 230, 200, ${iceGlow * 0.4}) 0%, transparent 70%)`,
+            borderRadius: "50%",
+            zIndex: -1,
+          }}
+        />
+        <Img
+          src={staticFile("assets/icons/ice_cube_simple.png")}
+          style={{
+            width: IMAGE_SIZES.icon + 30,
+            filter: `drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3)) drop-shadow(0 0 ${15 * iceGlow}px rgba(135, 206, 235, ${iceGlow * 0.5}))`,
+          }}
+        />
+        {/* Sparkles around ice */}
+        <div
+          style={{
+            position: "absolute",
+            top: -15,
+            right: 10,
+            width: 10,
+            height: 10,
+            background: "#FFFFFF",
+            borderRadius: "50%",
+            opacity: sparkle1,
+            filter: "blur(1px)",
+            boxShadow: "0 0 8px 3px rgba(255, 255, 255, 0.6)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: 20,
+            left: -10,
+            width: 7,
+            height: 7,
+            background: "#E0FFFF",
+            borderRadius: "50%",
+            opacity: sparkle2,
+            filter: "blur(1px)",
+            boxShadow: "0 0 6px 2px rgba(224, 255, 255, 0.5)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: 10,
+            right: -5,
+            width: 8,
+            height: 8,
+            background: "#B0E0E6",
+            borderRadius: "50%",
+            opacity: sparkle3,
+            filter: "blur(1px)",
+            boxShadow: "0 0 6px 2px rgba(176, 224, 230, 0.5)",
+          }}
+        />
+      </div>
+
+      {/* 채널명 로고 (bottom-center, 자막 위) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          bottom: "26%",
+          transform: `translateX(-50%) scale(${logoScale * logoPulse})`,
+          opacity: logoOpacity,
+          zIndex: Z_INDEX.content,
+        }}
+      >
+        <div
+          style={{
+            fontSize: FONT_SIZES.subtitle,
+            fontFamily: FONTS.primary,
+            fontWeight: 700,
+            color: "#FFFFFF",
+            textShadow: `${TEXT_STROKE}, 0 0 15px rgba(255, 200, 150, 0.5)`,
+            letterSpacing: 4,
+            padding: "14px 35px",
+            background: "linear-gradient(135deg, rgba(139, 69, 19, 0.75) 0%, rgba(180, 100, 50, 0.75) 100%)",
+            borderRadius: 15,
+            border: "2px solid rgba(212, 175, 55, 0.6)",
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
           }}
         >
-          <div
-            style={{
-              display: "inline-block",
-              background: "linear-gradient(135deg, rgba(255, 215, 0, 0.9) 0%, rgba(204, 153, 0, 0.9) 100%)",
-              padding: "20px 50px",
-              borderRadius: 20,
-              boxShadow: `0 0 40px rgba(255, 215, 0, ${glowPulse})`,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 56,
-                fontFamily: "Pretendard, sans-serif",
-                fontWeight: 800,
-                color: "#000000",
-              }}
-            >
-              한양 = 세계적 대도시
-            </span>
-          </div>
+          테스트 채널
         </div>
-      )}
+      </div>
 
-      {/* 자막 */}
+      {/* ========================================
+          Layer 2: 자막 (최상단)
+          ======================================== */}
       {currentCaption && (
         <div
           style={{
             position: "absolute",
-            bottom: 40,
+            bottom: CAPTION_STYLE.bottom,
             left: 0,
             right: 0,
             textAlign: "center",
-            fontSize: 45,
-            fontFamily: "Pretendard, sans-serif",
-            fontWeight: 600,
-            color: "#000000",
-            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
-            padding: "0 40px",
-            zIndex: 1000,
+            fontSize: CAPTION_STYLE.fontSize,
+            fontFamily: CAPTION_STYLE.fontFamily,
+            fontWeight: CAPTION_STYLE.fontWeight,
+            color: CAPTION_STYLE.color,
+            textShadow: CAPTION_STROKE,
+            padding: CAPTION_STYLE.padding,
+            zIndex: Z_INDEX.caption,
           }}
         >
           {currentCaption.text}

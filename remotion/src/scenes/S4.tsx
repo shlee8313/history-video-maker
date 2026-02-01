@@ -1,3 +1,4 @@
+// remotion/src/scenes/S4.tsx
 import React from "react";
 import {
   AbsoluteFill,
@@ -8,38 +9,26 @@ import {
   interpolate,
   Easing,
 } from "remotion";
+import {
+  FONT_SIZES,
+  IMAGE_SIZES,
+  CAPTION_STYLE,
+  CAPTION_STROKE,
+  TEXT_STROKE,
+  FONTS,
+  Z_INDEX,
+} from "../lib/styles";
+import { fadeIn, cameraZoom, scaleIn, slideInRight, pulse } from "../lib/animations";
 
-// 자막용 흰 테두리
-const captionStroke = `
-  -2px -2px 0 #FFF,
-   2px -2px 0 #FFF,
-  -2px  2px 0 #FFF,
-   2px  2px 0 #FFF,
-  -3px  0   0 #FFF,
-   3px  0   0 #FFF,
-   0   -3px 0 #FFF,
-   0    3px 0 #FFF
-`;
+// Scene S4: core2 - 황금 얼음의 가치
+// Duration: 9.32 seconds (280 frames)
 
-// 일반 텍스트용 검은 테두리
-const textStroke = `
-  -2px -2px 0 #000,
-   2px -2px 0 #000,
-  -2px  2px 0 #000,
-   2px  2px 0 #000,
-  -3px  0   0 #000,
-   3px  0   0 #000,
-   0   -3px 0 #000,
-   0    3px 0 #000
-`;
-
-// 자막 데이터 (s4_timed.json - 상대 시간으로 변환)
-// 원본: scene_start: 24.80s
+// 자막 데이터 (s4_timed.json 기반)
 const captions = [
-  { text: "\"아니, 똥 퍼서 부자가 됐다고?\"", start: 0.0, end: 2.04 },
-  { text: "오늘 이 영상에서는 조선시대 가장 천한 직업이", start: 2.04, end: 5.42 },
-  { text: "어떻게 최고의 투자처가 되었는지,", start: 5.42, end: 7.50 },
-  { text: "그 놀라운 역사를 파헤쳐 보겠습니다.", start: 7.50, end: 9.64 },
+  { text: "당시 얼음값은 어마어마했습니다.", start: 0.0, end: 2.36 },
+  { text: "여름철 얼음 한 덩이 값이", start: 3.34, end: 5.2 },
+  { text: "쌀 두세 말과 맞먹었다고 해요.", start: 5.2, end: 7.02 },
+  { text: "그야말로 황금 얼음이었던 셈이죠.", start: 7.64, end: 9.32 },
 ];
 
 export const S4: React.FC = () => {
@@ -52,249 +41,270 @@ export const S4: React.FC = () => {
     (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  // 카메라 줌 효과
-  const zoom = interpolate(frame, [0, durationInFrames], [1, 1.15], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.33, 1, 0.68, 1),
-  });
+  // ========================================
+  // 배경 애니메이션 (zoom in on comparison)
+  // ========================================
+  const bgScale = cameraZoom(frame, 0, durationInFrames, 1.0, 1.12);
 
-  // 질문 텍스트 등장 (타이프라이터 효과 + 쉐이크)
-  const questionText = "똥 퍼서 부자가 됐다고?";
-  const questionOpacity = interpolate(frame, [0, 15], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const questionShake = frame >= 15 && frame <= 30
-    ? Math.sin((frame - 15) * 0.5) * 5
-    : 0;
+  // ========================================
+  // 콘텐츠 애니메이션
+  // ========================================
 
-  // 배가지 아이콘 (똥푸는 도구) 등장
-  const toolStartFrame = 1.5 * fps;
-  const toolScale = interpolate(
-    frame,
-    [toolStartFrame, toolStartFrame + 15],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
-    }
-  );
-  const toolOpacity = interpolate(
-    frame,
-    [toolStartFrame, toolStartFrame + 10],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
+  // 황금빛 얼음: fadeIn with golden glow effect (starts at beginning)
+  const iceOpacity = fadeIn(frame, 0, 25);
+  const iceScale = scaleIn(frame, 0, 30, 0.8, 1);
+  // Golden glow pulse
+  const iceGlow = pulse(frame, 0, 60, 0.4, 1);
 
-  // 도구가 황금으로 변하는 효과
-  const goldTransformStart = 2.5 * fps;
-  const goldFilter = interpolate(
-    frame,
-    [goldTransformStart, goldTransformStart + 30],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
+  // 쌀자루: slideIn from right (when "쌀 두세 말" mentioned)
+  const riceStartFrame = Math.round(5.2 * fps);
+  const riceX = slideInRight(frame, riceStartFrame, 30, 300);
+  const riceOpacity = fadeIn(frame, riceStartFrame, 20);
+  const riceScale = scaleIn(frame, riceStartFrame, 25);
 
-  // 황금 동전 떨어지는 효과
-  const coinStartFrame = 3 * fps;
-  const coins = [
-    { x: -200, delay: 0 },
-    { x: -100, delay: 5 },
-    { x: 0, delay: 10 },
-    { x: 100, delay: 15 },
-    { x: 200, delay: 20 },
-  ];
+  // 등호 (=): popIn to emphasize comparison
+  const equalsStartFrame = Math.round(3.34 * fps);
+  const equalsOpacity = fadeIn(frame, equalsStartFrame, 15);
+  const equalsScale = scaleIn(frame, equalsStartFrame, 20);
+  // Pulse effect for emphasis
+  const equalsPulse = pulse(frame, equalsStartFrame, 40, 0.9, 1.1);
 
-  // 스윙 모션 (도구)
-  const swingAngle = frame >= toolStartFrame && frame <= goldTransformStart
-    ? Math.sin((frame - toolStartFrame) * 0.2) * 10
-    : 0;
+  // "황금 얼음" 텍스트: appears at end
+  const goldenTextStartFrame = Math.round(7.64 * fps);
+  const goldenTextOpacity = fadeIn(frame, goldenTextStartFrame, 20);
+  const goldenTextScale = scaleIn(frame, goldenTextStartFrame, 25);
 
-  // 글로우 효과
-  const glowIntensity = interpolate(
-    frame,
-    [goldTransformStart, goldTransformStart + 30],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
+  // Golden sparkle effect (continuous)
+  const sparkleOpacity1 = pulse(frame, 15, 30, 0.2, 1);
+  const sparkleOpacity2 = pulse(frame, 25, 35, 0.3, 0.9);
+  const sparkleOpacity3 = pulse(frame, 40, 40, 0.1, 0.8);
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
-      {/* 카메라 줌 컨테이너 */}
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          transform: `scale(${zoom})`,
-          transformOrigin: "center center",
-        }}
-      >
-        {/* 질문 텍스트 */}
+    <AbsoluteFill>
+      {/* ========================================
+          Layer 0: 배경 이미지 (최하단)
+          ======================================== */}
+      <AbsoluteFill style={{ zIndex: Z_INDEX.background }}>
+        <Img
+          src={staticFile("assets/backgrounds/bg_s4.png")}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: `scale(${bgScale})`,
+            transformOrigin: "center center",
+          }}
+        />
+        {/* 다크 오버레이 (가독성 향상) */}
         <div
           style={{
             position: "absolute",
-            top: "20%",
+            top: 0,
             left: 0,
             right: 0,
-            textAlign: "center",
-            transform: `translateX(${questionShake}px)`,
-            opacity: questionOpacity,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.15)",
+          }}
+        />
+      </AbsoluteFill>
+
+      {/* ========================================
+          Layer 1: 콘텐츠 요소
+          ======================================== */}
+
+      {/* 비교 컨테이너 (center) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "45%",
+          transform: "translate(-50%, -50%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 60,
+          zIndex: Z_INDEX.content,
+        }}
+      >
+        {/* 황금빛 얼음 (center-left) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            transform: `scale(${iceScale})`,
+            opacity: iceOpacity,
           }}
         >
+          {/* Glow effect behind ice */}
           <div
             style={{
-              fontSize: 72,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 800,
+              position: "absolute",
+              width: IMAGE_SIZES.artifactLarge + 80,
+              height: IMAGE_SIZES.artifactLarge + 80,
+              background: `radial-gradient(circle, rgba(255, 215, 0, ${0.3 * iceGlow}) 0%, transparent 70%)`,
+              borderRadius: "50%",
+              zIndex: -1,
+            }}
+          />
+          <Img
+            src={staticFile("assets/icons/ice_block_golden.png")}
+            style={{
+              width: IMAGE_SIZES.artifactLarge,
+              filter: `drop-shadow(0 0 ${20 * iceGlow}px rgba(255, 215, 0, ${0.6 * iceGlow}))`,
+            }}
+          />
+          {/* Sparkles */}
+          <div
+            style={{
+              position: "absolute",
+              top: -10,
+              right: 20,
+              width: 12,
+              height: 12,
+              background: "#FFD700",
+              borderRadius: "50%",
+              opacity: sparkleOpacity1,
+              filter: "blur(1px)",
+              boxShadow: "0 0 10px 4px rgba(255, 215, 0, 0.6)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              top: 30,
+              left: 0,
+              width: 8,
+              height: 8,
+              background: "#FFFACD",
+              borderRadius: "50%",
+              opacity: sparkleOpacity2,
+              filter: "blur(1px)",
+              boxShadow: "0 0 8px 3px rgba(255, 250, 205, 0.5)",
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              bottom: 50,
+              right: -10,
+              width: 10,
+              height: 10,
+              background: "#FFE066",
+              borderRadius: "50%",
+              opacity: sparkleOpacity3,
+              filter: "blur(1px)",
+              boxShadow: "0 0 8px 3px rgba(255, 224, 102, 0.5)",
+            }}
+          />
+          {/* 얼음 라벨 */}
+          <div
+            style={{
+              marginTop: 15,
+              fontSize: FONT_SIZES.label,
+              fontFamily: FONTS.primary,
+              fontWeight: 600,
               color: "#FFD700",
-              textShadow: `${textStroke}, 0 4px 20px rgba(255, 215, 0, 0.6)`,
+              textShadow: "2px 2px 4px rgba(0, 0, 0, 0.8)",
+              whiteSpace: "nowrap",
             }}
           >
-            {questionText}
+            얼음 한 덩이
           </div>
         </div>
 
-        {/* 배가지 (똥푸는 도구) */}
-        {frame >= toolStartFrame && (
+        {/* 등호 (=) */}
+        <div
+          style={{
+            fontSize: FONT_SIZES.hero,
+            fontFamily: FONTS.primary,
+            fontWeight: 800,
+            color: "#FFFFFF",
+            textShadow: `${TEXT_STROKE}, 0 0 20px rgba(255, 255, 255, 0.5)`,
+            opacity: equalsOpacity,
+            transform: `scale(${equalsScale * equalsPulse})`,
+          }}
+        >
+          =
+        </div>
+
+        {/* 쌀자루 (center-right) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            transform: `translateX(${riceX}px) scale(${riceScale})`,
+            opacity: riceOpacity,
+          }}
+        >
+          <Img
+            src={staticFile("assets/icons/rice_bags.png")}
+            style={{
+              width: IMAGE_SIZES.artifact,
+              filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4))",
+            }}
+          />
+          {/* 쌀 라벨 */}
           <div
             style={{
-              position: "absolute",
-              top: "45%",
-              left: "50%",
-              transform: `translate(-50%, -50%) scale(${toolScale}) rotate(${swingAngle}deg)`,
-              opacity: toolOpacity,
+              marginTop: 15,
+              fontSize: FONT_SIZES.label,
+              fontFamily: FONTS.primary,
+              fontWeight: 600,
+              color: "#FFFFFF",
+              textShadow: "2px 2px 4px rgba(0, 0, 0, 0.8)",
+              whiteSpace: "nowrap",
             }}
           >
-            <Img
-              src={staticFile("assets/icons/baegaji.png")}
-              style={{
-                width: 250,
-                height: 280,
-                filter: `sepia(${goldFilter * 0.5}) saturate(${1 + goldFilter * 2}) brightness(${1 + goldFilter * 0.3})`,
-              }}
-            />
-            {/* 황금 글로우 효과 */}
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                width: 300,
-                height: 300,
-                borderRadius: "50%",
-                background: "radial-gradient(circle, rgba(255,215,0,0.5) 0%, rgba(255,215,0,0) 70%)",
-                opacity: glowIntensity,
-              }}
-            />
+            쌀 두세 말
           </div>
-        )}
-
-        {/* 황금 동전들 */}
-        {coins.map((coin, index) => {
-          const coinFrame = coinStartFrame + coin.delay;
-          const coinY = interpolate(
-            frame,
-            [coinFrame, coinFrame + 60],
-            [-100, 400],
-            {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-              easing: Easing.bezier(0.33, 1, 0.68, 1),
-            }
-          );
-          const coinOpacity = interpolate(
-            frame,
-            [coinFrame, coinFrame + 10, coinFrame + 50, coinFrame + 60],
-            [0, 1, 1, 0],
-            {
-              extrapolateLeft: "clamp",
-              extrapolateRight: "clamp",
-            }
-          );
-          const coinRotation = (frame - coinFrame) * 5;
-
-          return (
-            <div
-              key={index}
-              style={{
-                position: "absolute",
-                top: coinY,
-                left: `calc(50% + ${coin.x}px)`,
-                transform: `translateX(-50%) rotate(${coinRotation}deg)`,
-                opacity: coinOpacity,
-                width: 50,
-                height: 50,
-                borderRadius: "50%",
-                background: "linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%)",
-                boxShadow: "0 0 15px rgba(255, 215, 0, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.5)",
-              }}
-            />
-          );
-        })}
-
-        {/* 영상 소개 텍스트 */}
-        {currentTime >= 5.42 && (
-          <div
-            style={{
-              position: "absolute",
-              bottom: "25%",
-              left: 0,
-              right: 0,
-              textAlign: "center",
-              opacity: interpolate(
-                frame,
-                [5.42 * fps, 5.42 * fps + 15],
-                [0, 1],
-                {
-                  extrapolateLeft: "clamp",
-                  extrapolateRight: "clamp",
-                }
-              ),
-            }}
-          >
-            <div
-              style={{
-                fontSize: 48,
-                fontFamily: "Pretendard, sans-serif",
-                fontWeight: 600,
-                color: "#FFFFFF",
-                textShadow: textStroke,
-              }}
-            >
-              천한 직업 → 최고의 투자처
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* 자막 */}
+      {/* "황금 얼음" 강조 텍스트 (bottom-center, 자막 위) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          bottom: "26%",
+          transform: `translateX(-50%) scale(${goldenTextScale})`,
+          opacity: goldenTextOpacity,
+          zIndex: Z_INDEX.content,
+        }}
+      >
+        <div
+          style={{
+            fontSize: FONT_SIZES.title,
+            fontFamily: FONTS.primary,
+            fontWeight: 800,
+            color: "#FFD700",
+            textShadow: `${TEXT_STROKE}, 0 0 25px rgba(255, 215, 0, 0.6)`,
+            letterSpacing: 6,
+          }}
+        >
+          황금 얼음
+        </div>
+      </div>
+
+      {/* ========================================
+          Layer 2: 자막 (최상단)
+          ======================================== */}
       {currentCaption && (
         <div
           style={{
             position: "absolute",
-            bottom: 40,
+            bottom: CAPTION_STYLE.bottom,
             left: 0,
             right: 0,
             textAlign: "center",
-            fontSize: 45,
-            fontFamily: "Pretendard, sans-serif",
-            fontWeight: 600,
-            color: "#000000",
-            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
-            padding: "0 40px",
-            zIndex: 1000,
+            fontSize: CAPTION_STYLE.fontSize,
+            fontFamily: CAPTION_STYLE.fontFamily,
+            fontWeight: CAPTION_STYLE.fontWeight,
+            color: CAPTION_STYLE.color,
+            textShadow: CAPTION_STROKE,
+            padding: CAPTION_STYLE.padding,
+            zIndex: Z_INDEX.caption,
           }}
         >
           {currentCaption.text}

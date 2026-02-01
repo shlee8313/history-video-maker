@@ -43,12 +43,18 @@ Phase 6: FINAL
 
 import json
 import sys
+import io
 import argparse
 import os
 import subprocess
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+
+# Windows 콘솔 UTF-8 인코딩 설정
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # .env 로드
 try:
@@ -353,7 +359,10 @@ def get_scenes_for_section(section: str) -> List[str]:
     if not scenes_data or "meta" not in scenes_data:
         return []
 
-    section_info = scenes_data["meta"]["sections"].get(section, {})
+    section_info = scenes_data["meta"]["sections"].get(section, [])
+    # section_info가 리스트면 직접 반환, 딕셔너리면 "scenes" 키 사용
+    if isinstance(section_info, list):
+        return section_info
     return section_info.get("scenes", [])
 
 
@@ -775,8 +784,8 @@ def cmd_update_root(args):
 
         if timing_file.exists():
             timing_data = load_json(timing_file)
-            # s{n}_timed.json 구조에서 duration 가져오기
-            duration = timing_data.get("timing", {}).get("duration", timing_data.get("duration", 10))
+            # s{n}_timed.json 구조: 최상위 레벨에 duration 필드
+            duration = timing_data.get("duration", 10)
         else:
             duration = 10  # default
 
@@ -1041,7 +1050,8 @@ def merge_section(section: str):
             continue
 
         current_timing = load_json(timed_path)
-        current_end = current_timing.get('timing', {}).get('scene_end', 0)
+        # s{n}_timed.json 구조: 최상위 레벨에 section_start, section_end 필드
+        current_end = current_timing.get('section_end', 0)
 
         # 다음 씬의 시작 시간 확인 (gap 계산)
         gap_duration = 0
@@ -1050,7 +1060,7 @@ def merge_section(section: str):
             next_timed_path = AUDIO_DIR / f"{next_scene_id}_timed.json"
             if next_timed_path.exists():
                 next_timing = load_json(next_timed_path)
-                next_start = next_timing.get('timing', {}).get('scene_start', 0)
+                next_start = next_timing.get('section_start', 0)
                 gap_duration = next_start - current_end
 
         # gap이 있으면 마지막 프레임 연장
@@ -1079,8 +1089,13 @@ def merge_section(section: str):
 
     try:
         if audio_path.exists():
-            # 영상 concat + 오디오 합성
-            cmd = f'ffmpeg -y -f concat -safe 0 -i "{list_file}" -i "{audio_path}" -c:v libx264 -preset fast -c:a aac -b:a 192k -map 0:v:0 -map 1:a:0 -shortest "{output_path}"'
+            # 오디오 길이 확인
+            audio_dur_cmd = f'ffprobe -v error -show_entries format=duration -of csv=p=0 "{audio_path}"'
+            audio_dur_result = subprocess.run(audio_dur_cmd, capture_output=True, text=True, shell=True)
+            audio_duration = float(audio_dur_result.stdout.strip()) if audio_dur_result.stdout.strip() else 0
+
+            # 영상 concat + 오디오 합성 (-t로 오디오 길이에 맞춤, -shortest는 concat에서 불안정)
+            cmd = f'ffmpeg -y -f concat -safe 0 -i "{list_file}" -i "{audio_path}" -c:v libx264 -preset fast -c:a aac -b:a 192k -map 0:v:0 -map 1:a:0 -t {audio_duration} "{output_path}"'
         else:
             # 영상만 concat
             cmd = f'ffmpeg -y -f concat -safe 0 -i "{list_file}" -c:v libx264 -preset fast "{output_path}"'
@@ -1330,7 +1345,7 @@ def cmd_init(args):
 
     # 1. output 폴더 초기화
     print("\n[1/4] Cleaning output folders...")
-    for d in [SCRIPTS_DIR, AUDIO_DIR, BACKGROUNDS_DIR, VISUAL_DIR, RENDERS_DIR, SCENES_DIR, SECTIONS_DIR, TRANSITIONS_DIR]:
+    for d in [SCRIPTS_DIR, AUDIO_DIR, BACKGROUNDS_DIR, VISUAL_DIR, RENDERS_DIR, COMPOSITE_DIR, SECTIONS_DIR, TRANSITIONS_DIR]:
         if d.exists():
             shutil.rmtree(d)
             print(f"  - {d.name}")
@@ -1381,7 +1396,7 @@ export const RemotionRoot: React.FC = () => {
 
     # 3. assets 폴더 내용 삭제
     print("\n[3/4] Cleaning assets folders...")
-    asset_categories = ["icons", "maps", "portraits", "artifacts", "backgrounds"]
+    asset_categories = ["icons", "maps", "portraits", "artifacts", "backgrounds", "images"]
 
     for cat in asset_categories:
         cat_dir = ASSETS_DIR / cat
@@ -1475,7 +1490,7 @@ def cmd_download_assets(args):
             continue
         scene_data = load_json(scene_file)
         if scene_data:
-            for elem in scene_data.get("required_elements", []):
+            for elem in scene_data.get("elements", []):
                 asset = elem.get("asset")
                 if asset:
                     required_assets.add(asset)
@@ -1524,40 +1539,6 @@ def cmd_download_assets(args):
             print(f"[ERROR] {asset_id}: {str(e)[:50]}")
 
     print(f"\n[DONE] Downloaded {downloaded} new assets")
-
-
-
-    """에셋 카탈로그 생성"""
-    print("\n[CATALOG] Generating asset catalog...")
-
-    catalog = {
-        "icons": [],
-        "portraits": [],
-        "maps": [],
-        "generated_at": datetime.now().isoformat()
-    }
-
-    categories = ["icons", "portraits", "maps"]
-
-    for cat in categories:
-        cat_dir = ASSETS_DIR / cat
-        if cat_dir.exists():
-            for f in cat_dir.glob("*.png"):
-                catalog[cat].append({
-                    "name": f.stem,
-                    "path": f"assets/{cat}/{f.name}"
-                })
-            for f in cat_dir.glob("*.jpg"):
-                catalog[cat].append({
-                    "name": f.stem,
-                    "path": f"assets/{cat}/{f.name}"
-                })
-
-    output_path = OUTPUT_DIR / "asset_catalog.csv"
-    save_json(output_path, catalog)
-
-    total = sum(len(catalog[c]) for c in categories)
-    print(f"[OK] Catalog generated ({total} assets)")
 
 
 # ============================================================

@@ -1,3 +1,4 @@
+// remotion/src/scenes/S5.tsx
 import React from "react";
 import {
   AbsoluteFill,
@@ -6,39 +7,26 @@ import {
   Img,
   staticFile,
   interpolate,
-  Easing,
 } from "remotion";
+import {
+  FONT_SIZES,
+  IMAGE_SIZES,
+  CAPTION_STYLE,
+  CAPTION_STROKE,
+  TEXT_STROKE,
+  FONTS,
+  Z_INDEX,
+} from "../lib/styles";
+import { fadeIn, cameraZoom, slideInLeft, slideInRight, scaleIn, drawLine } from "../lib/animations";
 
-// 자막용 흰 테두리
-const captionStroke = `
-  -2px -2px 0 #FFF,
-   2px -2px 0 #FFF,
-  -2px  2px 0 #FFF,
-   2px  2px 0 #FFF,
-  -3px  0   0 #FFF,
-   3px  0   0 #FFF,
-   0   -3px 0 #FFF,
-   0    3px 0 #FFF
-`;
+// Scene S5: insight - 과거와 현재의 연결
+// Duration: 8.88 seconds (267 frames)
 
-// 일반 텍스트용 검은 테두리
-const textStroke = `
-  -2px -2px 0 #000,
-   2px -2px 0 #000,
-  -2px  2px 0 #000,
-   2px  2px 0 #000,
-  -3px  0   0 #000,
-   3px  0   0 #000,
-   0   -3px 0 #000,
-   0    3px 0 #000
-`;
-
-// 자막 데이터 (s5_timed.json - 상대 시간)
+// 자막 데이터 (s5_timed.json 기반)
 const captions = [
-  { text: "먼저 조선시대 한양이 어떤 도시였는지 살펴봐야 합니다.", start: 0.0, end: 3.84 },
-  { text: "15세기 초, 태조 이성계가 한양으로 천도했을 때", start: 4.98, end: 8.30 },
-  { text: "인구는 약 10만 명이었습니다.", start: 8.30, end: 10.60 },
-  { text: "이것만 해도 당시로서는 어마어마한 규모였죠.", start: 10.72, end: 13.30 },
+  { text: "조선의 얼음 장수들은", start: 0.0, end: 1.78 },
+  { text: "오늘날의 콜드체인 물류 사업가들과 다르지 않았습니다.", start: 1.78, end: 5.82 },
+  { text: "기술과 자본이 결합된 최첨단 비즈니스였던 거죠.", start: 6.14, end: 8.88 },
 ];
 
 export const S5: React.FC = () => {
@@ -51,304 +39,308 @@ export const S5: React.FC = () => {
     (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  // 한양 지도 줌 아웃 효과
-  const mapZoom = interpolate(frame, [0, durationInFrames], [1.3, 1.0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.33, 1, 0.68, 1),
-  });
+  // ========================================
+  // 배경 애니메이션 (wide shot)
+  // ========================================
+  const bgScale = cameraZoom(frame, 0, durationInFrames, 1.0, 1.06);
 
-  const mapOpacity = interpolate(frame, [0, 30], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  // ========================================
+  // 콘텐츠 애니메이션
+  // ========================================
 
-  // 15세기 연도 표시 (4.98초부터)
-  const taejoStartFrame = 4.98 * fps;
-  const yearOpacity = interpolate(
-    frame,
-    [taejoStartFrame - 15, taejoStartFrame],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
+  // 조선 상인 (왼쪽): fadeIn from left
+  const joseonStartFrame = 0;
+  const joseonX = slideInLeft(frame, joseonStartFrame, 30, 300);
+  const joseonOpacity = fadeIn(frame, joseonStartFrame, 25);
+  const joseonScale = scaleIn(frame, joseonStartFrame, 35, 0.9, 1);
 
-  // 태조 초상화 fadeIn (4.98초부터)
-  const taejoOpacity = interpolate(
-    frame,
-    [taejoStartFrame, taejoStartFrame + 20],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.33, 1, 0.68, 1),
-    }
-  );
-  const taejoScale = interpolate(
-    frame,
-    [taejoStartFrame, taejoStartFrame + 20],
-    [0.8, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
-    }
-  );
-  const taejoGlow = interpolate(
-    frame,
-    [taejoStartFrame + 20, taejoStartFrame + 40],
-    [0, 0.5],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
+  // 현대 트럭 (오른쪽): fadeIn from right (when "오늘날" mentioned)
+  const truckStartFrame = Math.round(1.78 * fps);
+  const truckX = slideInRight(frame, truckStartFrame, 30, 300);
+  const truckOpacity = fadeIn(frame, truckStartFrame, 25);
+  const truckScale = scaleIn(frame, truckStartFrame, 35, 0.9, 1);
 
-  // 인구 카운터 (8.30초부터)
-  const counterStartFrame = 8.30 * fps;
-  const counterEndFrame = 10.5 * fps;
-  const counterProgress = interpolate(
+  // 연결선: draw animation connecting both (center에서 확장)
+  const lineStartFrame = Math.round(3.0 * fps);
+  const lineProgress = drawLine(frame, lineStartFrame, 40);
+  const lineWidth = interpolate(
     frame,
-    [counterStartFrame, counterEndFrame],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.33, 1, 0.68, 1),
-    }
+    [lineStartFrame, lineStartFrame + 40],
+    [0, 400],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
-  const displayCount = Math.floor(counterProgress * 100000);
+  const lineOpacity = fadeIn(frame, lineStartFrame, 20);
 
-  const counterOpacity = interpolate(
+  // "기술 + 자본" 텍스트: typewriter effect at end
+  const textStartFrame = Math.round(6.14 * fps);
+  const text = "기술 + 자본";
+  const textOpacity = fadeIn(frame, textStartFrame, 20);
+  const textScale = scaleIn(frame, textStartFrame, 25);
+  // Typewriter effect
+  const charsToShow = interpolate(
     frame,
-    [counterStartFrame, counterStartFrame + 15],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
+    [textStartFrame, textStartFrame + 50],
+    [0, text.length],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
+  const displayText = text.slice(0, Math.floor(charsToShow));
 
-  // 어마어마한 규모 강조 (10.72초부터)
-  const scaleTextStartFrame = 10.72 * fps;
-  const scaleTextOpacity = interpolate(
+  // Glow effect for connection
+  const glowOpacity = interpolate(
     frame,
-    [scaleTextStartFrame, scaleTextStartFrame + 15],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
+    [lineStartFrame + 30, lineStartFrame + 45],
+    [0, 0.6],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
-  const scaleTextScale = interpolate(
-    frame,
-    [scaleTextStartFrame, scaleTextStartFrame + 15],
-    [0.5, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
-    }
-  );
-
-  // 글로우 펄스
-  const glowPulse = Math.sin(frame * 0.1) * 0.3 + 0.7;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
-      {/* 한양 조감도/지도 */}
+    <AbsoluteFill>
+      {/* ========================================
+          Layer 0: 배경 이미지 (최하단)
+          ======================================== */}
+      <AbsoluteFill style={{ zIndex: Z_INDEX.background }}>
+        <Img
+          src={staticFile("assets/backgrounds/bg_s5.png")}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: `scale(${bgScale})`,
+            transformOrigin: "center center",
+          }}
+        />
+        {/* 다크 오버레이 (가독성 향상) */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.25)",
+          }}
+        />
+      </AbsoluteFill>
+
+      {/* ========================================
+          Layer 1: 콘텐츠 요소
+          ======================================== */}
+
+      {/* 조선 상인 (왼쪽) */}
       <div
         style={{
           position: "absolute",
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          transform: `scale(${mapZoom})`,
-          transformOrigin: "center center",
+          left: "18%",
+          top: "42%",
+          transform: `translate(-50%, -50%) translateX(${joseonX}px) scale(${joseonScale})`,
+          opacity: joseonOpacity,
+          zIndex: Z_INDEX.content,
         }}
       >
-        <Img
-          src={staticFile("assets/maps/hanyang.png")}
-          style={{
-            width: 650,
-            height: 650,
-            opacity: mapOpacity,
-            filter: "sepia(0.3) contrast(1.1)",
-          }}
-        />
-      </div>
-
-      {/* 15세기 연도 표시 */}
-      {frame >= taejoStartFrame - 15 && (
+        {/* Sepia filter overlay */}
         <div
           style={{
-            position: "absolute",
-            top: "10%",
-            left: "10%",
-            opacity: yearOpacity,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 72,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 700,
-              color: "#D4AF37",
-              textShadow: `${textStroke}, 0 0 20px rgba(212, 175, 55, 0.5)`,
-            }}
-          >
-            15세기
-          </div>
-        </div>
-      )}
-
-      {/* 태조 이성계 초상화 */}
-      {frame >= taejoStartFrame && (
-        <div
-          style={{
-            position: "absolute",
-            right: "10%",
-            top: "25%",
-            opacity: taejoOpacity,
-            transform: `scale(${taejoScale})`,
+            position: "relative",
           }}
         >
           <Img
-            src={staticFile("assets/portraits/taejo.png")}
+            src={staticFile("assets/portraits/joseon_merchant.png")}
             style={{
-              width: 280,
-              height: "auto",
-              filter: `sepia(0.2) drop-shadow(0 0 ${15 * taejoGlow}px rgba(212, 175, 55, 0.6))`,
+              width: IMAGE_SIZES.portrait,
+              filter: "sepia(0.3) drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4))",
             }}
           />
-          {/* 글로우 효과 */}
+          {/* Label */}
           <div
             style={{
               position: "absolute",
-              top: "50%",
+              bottom: -45,
               left: "50%",
-              transform: "translate(-50%, -50%)",
-              width: 320,
-              height: 320,
-              borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(212,175,55,0.3) 0%, rgba(212,175,55,0) 70%)",
-              opacity: taejoGlow,
+              transform: "translateX(-50%)",
+              fontSize: FONT_SIZES.label,
+              fontFamily: FONTS.primary,
+              fontWeight: 600,
+              color: "#F5E6C8",
+              textShadow: "2px 2px 4px rgba(0, 0, 0, 0.8)",
+              whiteSpace: "nowrap",
+              padding: "6px 18px",
+              background: "rgba(112, 66, 20, 0.85)",
+              borderRadius: 8,
+              border: "1px solid #D4AF37",
+            }}
+          >
+            조선 얼음 장수
+          </div>
+        </div>
+      </div>
+
+      {/* 연결선 (center) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "42%",
+          transform: "translate(-50%, -50%)",
+          zIndex: Z_INDEX.content,
+          opacity: lineOpacity,
+        }}
+      >
+        {/* Glow behind line */}
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            width: lineWidth + 60,
+            height: 30,
+            background: `radial-gradient(ellipse, rgba(212, 175, 55, ${glowOpacity}) 0%, transparent 70%)`,
+            borderRadius: 15,
+          }}
+        />
+        {/* Main line */}
+        <div
+          style={{
+            width: lineWidth,
+            height: 6,
+            background: "linear-gradient(90deg, #8B4513, #D4AF37, #4FC3F7)",
+            borderRadius: 3,
+            boxShadow: `0 0 15px rgba(212, 175, 55, ${glowOpacity})`,
+          }}
+        />
+        {/* Arrow heads */}
+        {lineWidth > 50 && (
+          <>
+            <div
+              style={{
+                position: "absolute",
+                left: -10,
+                top: -7,
+                width: 0,
+                height: 0,
+                borderTop: "10px solid transparent",
+                borderBottom: "10px solid transparent",
+                borderRight: "15px solid #8B4513",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                right: -10,
+                top: -7,
+                width: 0,
+                height: 0,
+                borderTop: "10px solid transparent",
+                borderBottom: "10px solid transparent",
+                borderLeft: "15px solid #4FC3F7",
+              }}
+            />
+          </>
+        )}
+      </div>
+
+      {/* 현대 트럭 (오른쪽) */}
+      <div
+        style={{
+          position: "absolute",
+          right: "18%",
+          top: "42%",
+          transform: `translate(50%, -50%) translateX(${truckX}px) scale(${truckScale})`,
+          opacity: truckOpacity,
+          zIndex: Z_INDEX.content,
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+          }}
+        >
+          <Img
+            src={staticFile("assets/icons/modern_truck.png")}
+            style={{
+              width: IMAGE_SIZES.iconLarge + 60,
+              filter: "drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4))",
             }}
           />
-          {/* 이름 라벨 */}
+          {/* Label */}
           <div
             style={{
-              textAlign: "center",
-              marginTop: 15,
-              fontSize: 36,
-              fontFamily: "Pretendard, sans-serif",
+              position: "absolute",
+              bottom: -45,
+              left: "50%",
+              transform: "translateX(-50%)",
+              fontSize: FONT_SIZES.label,
+              fontFamily: FONTS.primary,
               fontWeight: 600,
               color: "#FFFFFF",
-              textShadow: textStroke,
+              textShadow: "2px 2px 4px rgba(0, 0, 0, 0.8)",
+              whiteSpace: "nowrap",
+              padding: "6px 18px",
+              background: "rgba(30, 80, 130, 0.85)",
+              borderRadius: 8,
+              border: "1px solid #4FC3F7",
             }}
           >
-            태조 이성계
+            콜드체인 물류
           </div>
         </div>
-      )}
+      </div>
 
-      {/* 인구 카운터 */}
-      {frame >= counterStartFrame && (
+      {/* "기술 + 자본" 텍스트 (bottom-center, 자막 위) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          bottom: "26%",
+          transform: `translateX(-50%) scale(${textScale})`,
+          opacity: textOpacity,
+          zIndex: Z_INDEX.content,
+        }}
+      >
         <div
           style={{
-            position: "absolute",
-            bottom: "28%",
-            left: 0,
-            right: 0,
-            textAlign: "center",
-            opacity: counterOpacity,
+            fontSize: FONT_SIZES.title,
+            fontFamily: FONTS.primary,
+            fontWeight: 800,
+            color: "#FFFFFF",
+            textShadow: `${TEXT_STROKE}, 0 0 20px rgba(79, 195, 247, 0.5)`,
+            letterSpacing: 6,
+            padding: "12px 30px",
+            background: "linear-gradient(135deg, rgba(139, 69, 19, 0.7) 0%, rgba(30, 80, 130, 0.7) 100%)",
+            borderRadius: 12,
+            border: "2px solid rgba(212, 175, 55, 0.5)",
           }}
         >
-          <div
+          {displayText}
+          <span
             style={{
-              fontSize: 42,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 500,
-              color: "#FFFFFF",
-              textShadow: textStroke,
-              marginBottom: 10,
+              opacity: Math.sin(frame * 0.3) > 0 ? 1 : 0,
+              color: "#4FC3F7",
             }}
           >
-            한양 인구
-          </div>
-          <div
-            style={{
-              fontSize: 96,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 800,
-              color: "#FFD700",
-              textShadow: `
-                ${textStroke},
-                0 4px 20px rgba(255, 215, 0, ${glowPulse})
-              `,
-            }}
-          >
-            {displayCount.toLocaleString()}명
-          </div>
+            |
+          </span>
         </div>
-      )}
+      </div>
 
-      {/* 어마어마한 규모 강조 */}
-      {frame >= scaleTextStartFrame && (
-        <div
-          style={{
-            position: "absolute",
-            top: "15%",
-            left: 0,
-            right: 0,
-            textAlign: "center",
-            opacity: scaleTextOpacity,
-            transform: `scale(${scaleTextScale})`,
-          }}
-        >
-          <div
-            style={{
-              display: "inline-block",
-              background: "rgba(255, 107, 53, 0.9)",
-              padding: "15px 40px",
-              borderRadius: 15,
-              boxShadow: `0 0 30px rgba(255, 107, 53, ${glowPulse})`,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 48,
-                fontFamily: "Pretendard, sans-serif",
-                fontWeight: 700,
-                color: "#FFFFFF",
-              }}
-            >
-              어마어마한 규모!
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* 자막 */}
+      {/* ========================================
+          Layer 2: 자막 (최상단)
+          ======================================== */}
       {currentCaption && (
         <div
           style={{
             position: "absolute",
-            bottom: 40,
+            bottom: CAPTION_STYLE.bottom,
             left: 0,
             right: 0,
             textAlign: "center",
-            fontSize: 45,
-            fontFamily: "Pretendard, sans-serif",
-            fontWeight: 600,
-            color: "#000000",
-            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
-            padding: "0 40px",
-            zIndex: 1000,
+            fontSize: CAPTION_STYLE.fontSize,
+            fontFamily: CAPTION_STYLE.fontFamily,
+            fontWeight: CAPTION_STYLE.fontWeight,
+            color: CAPTION_STYLE.color,
+            textShadow: CAPTION_STROKE,
+            padding: CAPTION_STYLE.padding,
+            zIndex: Z_INDEX.caption,
           }}
         >
           {currentCaption.text}

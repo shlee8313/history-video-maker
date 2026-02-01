@@ -1,45 +1,33 @@
+// remotion/src/scenes/S1.tsx
 import React from "react";
 import {
   AbsoluteFill,
   useCurrentFrame,
   useVideoConfig,
+  Img,
+  staticFile,
   interpolate,
   Easing,
 } from "remotion";
+import {
+  FONT_SIZES,
+  IMAGE_SIZES,
+  CAPTION_STYLE,
+  CAPTION_STROKE,
+  FONTS,
+  Z_INDEX,
+} from "../lib/styles";
+import { fadeIn, cameraZoom, scaleIn, pulse } from "../lib/animations";
 
-// 자막용 흰 테두리
-const captionStroke = `
-  -2px -2px 0 #FFF,
-   2px -2px 0 #FFF,
-  -2px  2px 0 #FFF,
-   2px  2px 0 #FFF,
-  -3px  0   0 #FFF,
-   3px  0   0 #FFF,
-   0   -3px 0 #FFF,
-   0    3px 0 #FFF
-`;
+// Scene S1: hook - 여름 얼음 인트로
+// Duration: 6.06 seconds (182 frames)
 
-// 일반 텍스트용 검은 테두리
-const textStroke = `
-  -2px -2px 0 #000,
-   2px -2px 0 #000,
-  -2px  2px 0 #000,
-   2px  2px 0 #000,
-  -3px  0   0 #000,
-   3px  0   0 #000,
-   0   -3px 0 #000,
-   0    3px 0 #000
-`;
-
-// 자막 데이터 (s1_timed.json)
+// 자막 데이터 (s1_timed.json 기반)
 const captions = [
-  { text: "여러분, 오늘날 서울 강남 땅 부러우시죠?", start: 0.0, end: 2.52 },
-  { text: "압구정, 청담, 도곡동...", start: 3.08, end: 4.92 },
-  { text: "평당 1억이 넘는 금싸라기 땅.", start: 5.52, end: 7.62 },
+  { text: "여러분, 냉장고 없던 조선시대에도", start: 0.0, end: 2.42 },
+  { text: "한여름에 시원한 얼음을 먹을 수 있었다는 사실,", start: 2.42, end: 5.24 },
+  { text: "알고 계셨나요?", start: 5.24, end: 6.06 },
 ];
-
-// 지역명 데이터
-const districts = ["압구정", "청담", "도곡동"];
 
 export const S1: React.FC = () => {
   const frame = useCurrentFrame();
@@ -51,166 +39,151 @@ export const S1: React.FC = () => {
     (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  // 카메라 줌 효과
-  const zoom = interpolate(frame, [0, durationInFrames], [1, 1.08], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.33, 1, 0.68, 1),
-  });
+  // ========================================
+  // 배경 애니메이션 (Ken Burns 효과)
+  // ========================================
+  const bgScale = cameraZoom(frame, 0, durationInFrames, 1.0, 1.08);
 
-  // 지역명 타이프라이터 효과 (3.08초부터 시작)
-  const districtStartFrame = 3.08 * fps;
-  const districtShowDuration = 0.5 * fps;
+  // ========================================
+  // 콘텐츠 애니메이션
+  // ========================================
 
-  // 금액 카운트업 효과 (5.52초부터 시작)
-  const priceStartFrame = 5.52 * fps;
-  const priceEndFrame = 7.2 * fps;
-  const priceProgress = interpolate(
+  // 태양 아이콘: fadeIn at start, subtle glow pulse
+  const sunOpacity = fadeIn(frame, 0, 20);
+  const sunGlow = pulse(frame, 0, 60, 1, 1.15);
+
+  // 얼음 블록: popIn with sparkle effect, slight float animation
+  const iceScale = scaleIn(frame, 15, 25);
+  const iceOpacity = fadeIn(frame, 15, 20);
+  // Float animation (subtle up-down)
+  const iceFloat = interpolate(
     frame,
-    [priceStartFrame, priceEndFrame],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.33, 1, 0.68, 1),
-    }
+    [0, 45, 90, 135, durationInFrames],
+    [0, -8, 0, -8, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
-  const displayPrice = Math.floor(priceProgress * 10000);
 
-  // 금액 글로우 효과
-  const priceGlow = interpolate(
-    frame,
-    [priceStartFrame, priceStartFrame + 30, priceEndFrame],
-    [0, 1, 0.7],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
+  // 물음표: fadeIn at end with bounce
+  const questionStartFrame = Math.round(5.24 * fps); // When "알고 계셨나요?" starts
+  const questionOpacity = fadeIn(frame, questionStartFrame - 15, 15);
+  const questionScale = scaleIn(frame, questionStartFrame - 15, 20);
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
-      {/* 카메라 줌 컨테이너 */}
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          transform: `scale(${zoom})`,
-          transformOrigin: "center center",
-        }}
-      >
-        {/* 지역명 표시 (중앙 상단) */}
+    <AbsoluteFill>
+      {/* ========================================
+          Layer 0: 배경 이미지 (최하단)
+          ======================================== */}
+      <AbsoluteFill style={{ zIndex: Z_INDEX.background }}>
+        <Img
+          src={staticFile("assets/backgrounds/bg_s1.png")}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: `scale(${bgScale})`,
+            transformOrigin: "center center",
+          }}
+        />
+        {/* 다크 오버레이 (가독성 향상) */}
         <div
           style={{
             position: "absolute",
-            top: "25%",
+            top: 0,
             left: 0,
             right: 0,
-            display: "flex",
-            justifyContent: "center",
-            gap: 60,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.15)",
           }}
-        >
-          {districts.map((district, index) => {
-            const showFrame = districtStartFrame + index * districtShowDuration;
-            const opacity = interpolate(
-              frame,
-              [showFrame, showFrame + 10],
-              [0, 1],
-              {
-                extrapolateLeft: "clamp",
-                extrapolateRight: "clamp",
-              }
-            );
-            const translateY = interpolate(
-              frame,
-              [showFrame, showFrame + 10],
-              [20, 0],
-              {
-                extrapolateLeft: "clamp",
-                extrapolateRight: "clamp",
-                easing: Easing.bezier(0.33, 1, 0.68, 1),
-              }
-            );
+        />
+      </AbsoluteFill>
 
-            return (
-              <div
-                key={district}
-                style={{
-                  fontSize: 72,
-                  fontFamily: "Pretendard, sans-serif",
-                  fontWeight: 700,
-                  color: "#FFFFFF",
-                  textShadow: `${textStroke}, 0 4px 20px rgba(255, 215, 0, 0.5)`,
-                  opacity,
-                  transform: `translateY(${translateY}px)`,
-                }}
-              >
-                {district}
-              </div>
-            );
-          })}
-        </div>
+      {/* ========================================
+          Layer 1: 콘텐츠 요소
+          ======================================== */}
 
-        {/* 금액 표시 (중앙) */}
-        {frame >= priceStartFrame && (
-          <div
-            style={{
-              position: "absolute",
-              top: "45%",
-              left: 0,
-              right: 0,
-              textAlign: "center",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 120,
-                fontFamily: "Pretendard, sans-serif",
-                fontWeight: 800,
-                color: "#FFD700",
-                textShadow: `
-                  ${textStroke},
-                  0 0 ${30 * priceGlow}px rgba(255, 215, 0, 0.8),
-                  0 0 ${60 * priceGlow}px rgba(255, 215, 0, 0.5)
-                `,
-              }}
-            >
-              평당 {displayPrice.toLocaleString()}만원
-            </div>
-            <div
-              style={{
-                fontSize: 48,
-                fontFamily: "Pretendard, sans-serif",
-                fontWeight: 600,
-                color: "#FFFFFF",
-                textShadow: textStroke,
-                marginTop: 10,
-                opacity: priceProgress,
-              }}
-            >
-              = 1억원 이상
-            </div>
-          </div>
-        )}
+      {/* 태양 아이콘 (top-right) */}
+      <Img
+        src={staticFile("assets/icons/sun_icon.png")}
+        style={{
+          position: "absolute",
+          right: 150,
+          top: 100,
+          width: IMAGE_SIZES.iconLarge,
+          opacity: sunOpacity,
+          transform: `scale(${sunGlow})`,
+          filter: "drop-shadow(0 0 30px rgba(255, 200, 50, 0.6))",
+          zIndex: Z_INDEX.content,
+        }}
+      />
+
+      {/* 얼음 블록 (center) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "45%",
+          transform: `translate(-50%, -50%) translateY(${iceFloat}px) scale(${iceScale})`,
+          opacity: iceOpacity,
+          zIndex: Z_INDEX.content,
+        }}
+      >
+        <Img
+          src={staticFile("assets/icons/ice_block.png")}
+          style={{
+            width: IMAGE_SIZES.artifactLarge,
+            filter: "drop-shadow(0 0 20px rgba(135, 206, 250, 0.5))",
+          }}
+        />
+        {/* 반짝임 효과 */}
+        <div
+          style={{
+            position: "absolute",
+            top: 20,
+            right: 30,
+            width: 15,
+            height: 15,
+            background: "white",
+            borderRadius: "50%",
+            opacity: pulse(frame, 20, 40, 0.3, 1),
+            filter: "blur(2px)",
+            boxShadow: "0 0 10px 5px rgba(255, 255, 255, 0.5)",
+          }}
+        />
       </div>
 
-      {/* 자막 */}
+      {/* 물음표 (bottom-center, 자막 영역 위) */}
+      <Img
+        src={staticFile("assets/icons/question_mark.png")}
+        style={{
+          position: "absolute",
+          left: "50%",
+          bottom: "28%",
+          transform: `translateX(-50%) scale(${questionScale})`,
+          width: IMAGE_SIZES.icon,
+          opacity: questionOpacity,
+          filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))",
+          zIndex: Z_INDEX.content,
+        }}
+      />
+
+      {/* ========================================
+          Layer 2: 자막 (최상단)
+          ======================================== */}
       {currentCaption && (
         <div
           style={{
             position: "absolute",
-            bottom: 40,
+            bottom: CAPTION_STYLE.bottom,
             left: 0,
             right: 0,
             textAlign: "center",
-            fontSize: 45,
-            fontFamily: "Pretendard, sans-serif",
-            fontWeight: 600,
-            color: "#000000",
-            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
-            padding: "0 40px",
-            zIndex: 1000,
+            fontSize: CAPTION_STYLE.fontSize,
+            fontFamily: CAPTION_STYLE.fontFamily,
+            fontWeight: CAPTION_STYLE.fontWeight,
+            color: CAPTION_STYLE.color,
+            textShadow: CAPTION_STROKE,
+            padding: CAPTION_STYLE.padding,
+            zIndex: Z_INDEX.caption,
           }}
         >
           {currentCaption.text}

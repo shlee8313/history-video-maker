@@ -1,3 +1,4 @@
+// remotion/src/scenes/S3.tsx
 import React from "react";
 import {
   AbsoluteFill,
@@ -8,37 +9,26 @@ import {
   interpolate,
   Easing,
 } from "remotion";
+import {
+  FONT_SIZES,
+  IMAGE_SIZES,
+  CAPTION_STYLE,
+  CAPTION_STROKE,
+  TEXT_STROKE,
+  FONTS,
+  Z_INDEX,
+} from "../lib/styles";
+import { fadeIn, cameraZoom, scaleIn, slideInLeft, pulse } from "../lib/animations";
 
-// 자막용 흰 테두리
-const captionStroke = `
-  -2px -2px 0 #FFF,
-   2px -2px 0 #FFF,
-  -2px  2px 0 #FFF,
-   2px  2px 0 #FFF,
-  -3px  0   0 #FFF,
-   3px  0   0 #FFF,
-   0   -3px 0 #FFF,
-   0    3px 0 #FFF
-`;
+// Scene S3: core1 - 민간 얼음 장사의 반전
+// Duration: 8.78 seconds (264 frames)
 
-// 일반 텍스트용 검은 테두리
-const textStroke = `
-  -2px -2px 0 #000,
-   2px -2px 0 #000,
-  -2px  2px 0 #000,
-   2px  2px 0 #000,
-  -3px  0   0 #000,
-   3px  0   0 #000,
-   0   -3px 0 #000,
-   0    3px 0 #000
-`;
-
-// 자막 데이터 (s3_timed.json - 상대 시간으로 변환)
-// 원본: scene_start: 14.66s
+// 자막 데이터 (s3_timed.json 기반)
 const captions = [
-  { text: "모두가 코를 막고 피하던 지옥의 냄새.", start: 0.0, end: 3.46 },
-  { text: "양반은 물론이고 상인조차 멀리하던 그 일.", start: 3.46, end: 6.38 },
-  { text: "바로 '매분자', 똥 푸는 사람들이었습니다.", start: 6.76, end: 10.14 },
+  { text: "그런데 여기서 반전!", start: 0.0, end: 1.58 },
+  { text: "민간에서도 얼음 장사가 성행했습니다.", start: 2.28, end: 4.4 },
+  { text: "겨울에 미리 얼음을 저장해두었다가,", start: 5.26, end: 7.22 },
+  { text: "여름에 비싸게 파는 사업이었죠.", start: 7.22, end: 8.78 },
 ];
 
 export const S3: React.FC = () => {
@@ -51,208 +41,209 @@ export const S3: React.FC = () => {
     (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  // 매분자 실루엣 fadeIn
-  const silhouetteOpacity = interpolate(frame, [10, 40], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.33, 1, 0.68, 1),
-  });
+  // ========================================
+  // 배경 애니메이션 (Ken Burns + zoom at "반전")
+  // ========================================
+  const bgScale = cameraZoom(frame, 0, durationInFrames, 1.0, 1.1);
 
-  // 매분자 실루엣 걷는 효과 (좌우 미세 이동)
-  const walkCycle = Math.sin(frame * 0.1) * 5;
+  // ========================================
+  // 콘텐츠 애니메이션
+  // ========================================
 
-  // 악취 파동 효과 (ripple)
-  const smellWaveOpacity = interpolate(frame, [30, 50], [0, 0.6], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  const smellWaveScale = interpolate(frame, [30, durationInFrames], [0.8, 1.5], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  // 코 막는 아이콘 popIn (0.5초부터)
-  const noseIconStartFrame = 0.5 * fps;
-  const noseIconScale = interpolate(
+  // "반전!" 텍스트: popUp with shake for emphasis at start
+  const reversalScale = scaleIn(frame, 0, 20);
+  const reversalOpacity = fadeIn(frame, 0, 15);
+  // Shake effect (subtle horizontal vibration)
+  const shakeX = interpolate(
     frame,
-    [noseIconStartFrame, noseIconStartFrame + 15],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
-    }
+    [5, 8, 11, 14, 17, 20],
+    [0, -8, 8, -6, 4, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
-  const noseIconOpacity = interpolate(
+  // Fade out after initial emphasis
+  const reversalFadeOut = interpolate(
     frame,
-    [noseIconStartFrame, noseIconStartFrame + 10],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
+    [45, 60],
+    [1, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
 
-  // 아이콘 흔들기 효과
-  const shakeOffset = frame >= noseIconStartFrame + 15
-    ? Math.sin((frame - noseIconStartFrame - 15) * 0.4) * 3
-    : 0;
+  // 얼음 상인: fadeIn with confident pose (starts when "민간에서도" begins)
+  const merchantStartFrame = Math.round(2.28 * fps);
+  const merchantOpacity = fadeIn(frame, merchantStartFrame, 25);
+  const merchantScale = scaleIn(frame, merchantStartFrame, 30, 0.9, 1);
 
-  // "매분자" 텍스트 등장 (6.76초부터)
-  const titleStartFrame = 6.76 * fps;
-  const titleOpacity = interpolate(
-    frame,
-    [titleStartFrame, titleStartFrame + 20],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
-  );
-  const titleScale = interpolate(
-    frame,
-    [titleStartFrame, titleStartFrame + 20],
-    [0.8, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
-    }
-  );
+  // 겨울에서 여름 화살표: slideIn showing season transition
+  const arrowStartFrame = Math.round(5.26 * fps);
+  const arrowX = slideInLeft(frame, arrowStartFrame, 30, 400);
+  const arrowOpacity = fadeIn(frame, arrowStartFrame, 20);
+  // Arrow glow pulse
+  const arrowGlow = pulse(frame, arrowStartFrame, 45, 0.4, 0.8);
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
-      {/* 악취 파동 효과 */}
-      <div
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: `translate(-50%, -50%) scale(${smellWaveScale})`,
-          width: 500,
-          height: 500,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(100,80,60,0.3) 0%, rgba(100,80,60,0) 70%)",
-          opacity: smellWaveOpacity,
-        }}
-      />
-
-      {/* 두 번째 파동 */}
-      <div
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: `translate(-50%, -50%) scale(${smellWaveScale * 0.8})`,
-          width: 400,
-          height: 400,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(80,60,40,0.4) 0%, rgba(80,60,40,0) 70%)",
-          opacity: smellWaveOpacity * 0.8,
-        }}
-      />
-
-      {/* 매분자 실루엣 */}
-      <div
-        style={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: `translate(calc(-50% + ${walkCycle}px), -55%)`,
-          opacity: silhouetteOpacity,
-        }}
-      >
+    <AbsoluteFill>
+      {/* ========================================
+          Layer 0: 배경 이미지 (최하단)
+          ======================================== */}
+      <AbsoluteFill style={{ zIndex: Z_INDEX.background }}>
         <Img
-          src={staticFile("assets/images/maebunza_silhouette.png")}
+          src={staticFile("assets/backgrounds/bg_s3.png")}
           style={{
-            width: 450,
-            height: 630,
-            filter: "brightness(0.9)",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: `scale(${bgScale})`,
+            transformOrigin: "center center",
           }}
         />
-      </div>
-
-      {/* 코 막는 아이콘 */}
-      <div
-        style={{
-          position: "absolute",
-          left: "12%",
-          top: "30%",
-          transform: `scale(${noseIconScale}) translateX(${shakeOffset}px)`,
-          opacity: noseIconOpacity,
-        }}
-      >
-        <Img
-          src={staticFile("assets/icons/nose_cover.png")}
-          style={{
-            width: 160,
-            height: 200,
-          }}
-        />
-      </div>
-
-      {/* "매분자" 타이틀 */}
-      {frame >= titleStartFrame && (
+        {/* 다크 오버레이 (가독성 향상) */}
         <div
           style={{
             position: "absolute",
-            top: "25%",
+            top: 0,
             left: 0,
             right: 0,
-            textAlign: "center",
-            transform: `scale(${titleScale})`,
-            opacity: titleOpacity,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.2)",
+          }}
+        />
+      </AbsoluteFill>
+
+      {/* ========================================
+          Layer 1: 콘텐츠 요소
+          ======================================== */}
+
+      {/* "반전!" 텍스트 (top-center) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: 100,
+          transform: `translateX(-50%) translateX(${shakeX}px) scale(${reversalScale})`,
+          opacity: reversalOpacity * reversalFadeOut,
+          zIndex: Z_INDEX.content,
+        }}
+      >
+        <div
+          style={{
+            fontSize: FONT_SIZES.hero,
+            fontFamily: FONTS.primary,
+            fontWeight: 800,
+            color: "#FF6B35",
+            textShadow: `${TEXT_STROKE}, 0 0 30px rgba(255, 107, 53, 0.6)`,
+            letterSpacing: 8,
           }}
         >
-          <div
-            style={{
-              fontSize: 100,
-              fontFamily: "'Gowun Batang', serif",
-              fontWeight: 700,
-              color: "#8B4513",
-              textShadow: `
-                -3px -3px 0 #F5E6C8,
-                 3px -3px 0 #F5E6C8,
-                -3px  3px 0 #F5E6C8,
-                 3px  3px 0 #F5E6C8,
-                0 4px 20px rgba(139, 69, 19, 0.5)
-              `,
-            }}
-          >
-            賣糞者
-          </div>
-          <div
-            style={{
-              fontSize: 56,
-              fontFamily: "Pretendard, sans-serif",
-              fontWeight: 600,
-              color: "#FFFFFF",
-              textShadow: textStroke,
-              marginTop: 10,
-            }}
-          >
-            매분자 - 똥 푸는 사람
-          </div>
+          반전!
         </div>
-      )}
+      </div>
 
-      {/* 자막 */}
+      {/* 얼음 상인 (center) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "42%",
+          transform: `translate(-50%, -50%) scale(${merchantScale})`,
+          opacity: merchantOpacity,
+          zIndex: Z_INDEX.content,
+        }}
+      >
+        <Img
+          src={staticFile("assets/portraits/ice_merchant.png")}
+          style={{
+            width: IMAGE_SIZES.portrait,
+            filter: "drop-shadow(0 6px 12px rgba(0, 0, 0, 0.4))",
+          }}
+        />
+        {/* 상인 라벨 */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: -40,
+            left: "50%",
+            transform: "translateX(-50%)",
+            fontSize: FONT_SIZES.label,
+            fontFamily: FONTS.primary,
+            fontWeight: 600,
+            color: "#FFFFFF",
+            textShadow: "2px 2px 4px rgba(0, 0, 0, 0.8)",
+            whiteSpace: "nowrap",
+            padding: "4px 16px",
+            background: "rgba(139, 69, 19, 0.8)",
+            borderRadius: 8,
+          }}
+        >
+          얼음 상인
+        </div>
+      </div>
+
+      {/* 겨울에서 여름 화살표 (bottom-center, 자막 위) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          bottom: "26%",
+          transform: `translateX(-50%) translateX(${arrowX}px)`,
+          opacity: arrowOpacity,
+          zIndex: Z_INDEX.content,
+          display: "flex",
+          alignItems: "center",
+          gap: 20,
+        }}
+      >
+        {/* 겨울 */}
+        <div
+          style={{
+            fontSize: FONT_SIZES.subtitle,
+            fontFamily: FONTS.primary,
+            fontWeight: 600,
+            color: "#87CEEB",
+            textShadow: `${TEXT_STROKE}, 0 0 15px rgba(135, 206, 235, ${arrowGlow})`,
+          }}
+        >
+          겨울
+        </div>
+        {/* 화살표 아이콘 */}
+        <Img
+          src={staticFile("assets/icons/winter_to_summer.png")}
+          style={{
+            width: IMAGE_SIZES.icon,
+            filter: `drop-shadow(0 0 10px rgba(255, 180, 50, ${arrowGlow}))`,
+          }}
+        />
+        {/* 여름 */}
+        <div
+          style={{
+            fontSize: FONT_SIZES.subtitle,
+            fontFamily: FONTS.primary,
+            fontWeight: 600,
+            color: "#FFB347",
+            textShadow: `${TEXT_STROKE}, 0 0 15px rgba(255, 179, 71, ${arrowGlow})`,
+          }}
+        >
+          여름
+        </div>
+      </div>
+
+      {/* ========================================
+          Layer 2: 자막 (최상단)
+          ======================================== */}
       {currentCaption && (
         <div
           style={{
             position: "absolute",
-            bottom: 40,
+            bottom: CAPTION_STYLE.bottom,
             left: 0,
             right: 0,
             textAlign: "center",
-            fontSize: 45,
-            fontFamily: "Pretendard, sans-serif",
-            fontWeight: 600,
-            color: "#000000",
-            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
-            padding: "0 40px",
-            zIndex: 1000,
+            fontSize: CAPTION_STYLE.fontSize,
+            fontFamily: CAPTION_STYLE.fontFamily,
+            fontWeight: CAPTION_STYLE.fontWeight,
+            color: CAPTION_STYLE.color,
+            textShadow: CAPTION_STROKE,
+            padding: CAPTION_STYLE.padding,
+            zIndex: Z_INDEX.caption,
           }}
         >
           {currentCaption.text}

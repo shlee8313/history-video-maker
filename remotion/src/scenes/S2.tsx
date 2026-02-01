@@ -1,3 +1,4 @@
+// remotion/src/scenes/S2.tsx
 import React from "react";
 import {
   AbsoluteFill,
@@ -8,37 +9,24 @@ import {
   interpolate,
   Easing,
 } from "remotion";
+import {
+  FONT_SIZES,
+  IMAGE_SIZES,
+  CAPTION_STYLE,
+  CAPTION_STROKE,
+  FONTS,
+  Z_INDEX,
+} from "../lib/styles";
+import { fadeIn, cameraZoom, scaleIn, slideInLeft, slideInRight } from "../lib/animations";
 
-// 자막용 흰 테두리
-const captionStroke = `
-  -2px -2px 0 #FFF,
-   2px -2px 0 #FFF,
-  -2px  2px 0 #FFF,
-   2px  2px 0 #FFF,
-  -3px  0   0 #FFF,
-   3px  0   0 #FFF,
-   0   -3px 0 #FFF,
-   0    3px 0 #FFF
-`;
+// Scene S2: background - 겨울 얼음 채취와 빙고 창고
+// Duration: 9.3 seconds (279 frames)
 
-// 일반 텍스트용 검은 테두리
-const textStroke = `
-  -2px -2px 0 #000,
-   2px -2px 0 #000,
-  -2px  2px 0 #000,
-   2px  2px 0 #000,
-  -3px  0   0 #000,
-   3px  0   0 #000,
-   0   -3px 0 #000,
-   0    3px 0 #000
-`;
-
-// 자막 데이터 (s2_timed.json - 상대 시간으로 변환)
-// 원본: scene_start: 7.78s
+// 자막 데이터 (s2_timed.json 기반)
 const captions = [
-  { text: "그런데 조선시대에도", start: 0.0, end: 1.52 },
-  { text: "한양의 노른자 땅을 쓸어 담은 사람들이 있었습니다.", start: 1.52, end: 4.38 },
-  { text: "놀라운 건, 그들의 직업이었죠.", start: 4.52, end: 6.82 },
+  { text: "조선시대에는 겨울에 강에서 얼음을 채취해", start: 0.0, end: 3.16 },
+  { text: "빙고라는 창고에 보관했습니다.", start: 3.16, end: 4.96 },
+  { text: "이 얼음은 왕실과 귀족만 누릴 수 있는 특권이었죠.", start: 6.06, end: 9.3 },
 ];
 
 export const S2: React.FC = () => {
@@ -51,183 +39,211 @@ export const S2: React.FC = () => {
     (c) => currentTime >= c.start && currentTime < c.end
   );
 
-  // 지도 fadeIn + 줌
-  const mapOpacity = interpolate(frame, [0, 20], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  const mapZoom = interpolate(frame, [0, durationInFrames], [1.1, 1.2], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.bezier(0.33, 1, 0.68, 1),
-  });
-
-  // 황금빛 하이라이트 펄스 효과
-  const pulseStartFrame = 30;
-  const highlightOpacity = interpolate(
+  // ========================================
+  // 배경 애니메이션 (카메라 팬 효과: 강에서 창고로)
+  // ========================================
+  const bgScale = cameraZoom(frame, 0, durationInFrames, 1.0, 1.05);
+  const bgPanX = interpolate(
     frame,
-    [pulseStartFrame, pulseStartFrame + 15],
-    [0, 0.6],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
+    [0, durationInFrames],
+    [20, -20],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
 
-  const highlightPulse = frame >= pulseStartFrame + 15
-    ? 0.6 + Math.sin((frame - pulseStartFrame - 15) * 0.15) * 0.2
-    : highlightOpacity;
+  // ========================================
+  // 콘텐츠 애니메이션
+  // ========================================
 
-  // 물음표 popUp (4.52초부터)
-  const questionStartFrame = 4.52 * fps;
-  const questionScale = interpolate(
+  // 얼음 채취 도구: slideIn from left, sawing motion
+  const iceHarvestingX = slideInLeft(frame, 0, 30, 300);
+  const iceHarvestingOpacity = fadeIn(frame, 0, 20);
+  // Sawing motion (subtle rotation)
+  const sawingMotion = interpolate(
     frame,
-    [questionStartFrame, questionStartFrame + 15],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-      easing: Easing.bezier(0.34, 1.56, 0.64, 1),
-    }
-  );
-  const questionOpacity = interpolate(
-    frame,
-    [questionStartFrame, questionStartFrame + 10],
-    [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
+    [0, 15, 30, 45, 60, 75, 90],
+    [0, 5, 0, 5, 0, 5, 0],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
 
-  // 노른자 땅 텍스트 등장
-  const goldenTextOpacity = interpolate(
+  // 빙고 창고: fadeIn with cold mist effect (나레이션 "빙고라는 창고" 시점)
+  const binggoStartFrame = Math.round(3.16 * fps);
+  const binggoOpacity = fadeIn(frame, binggoStartFrame, 25);
+  const binggoScale = scaleIn(frame, binggoStartFrame, 30, 0.8, 1);
+  // Mist effect (subtle pulse)
+  const mistOpacity = interpolate(
     frame,
-    [15, 30],
+    [binggoStartFrame, binggoStartFrame + 30, binggoStartFrame + 60],
+    [0, 0.4, 0.2],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
+  );
+
+  // 왕실 문장: popIn with glow at mention of royalty
+  const royalStartFrame = Math.round(6.06 * fps);
+  const royalOpacity = fadeIn(frame, royalStartFrame, 20);
+  const royalScale = scaleIn(frame, royalStartFrame, 25);
+  const royalGlow = interpolate(
+    frame,
+    [royalStartFrame, royalStartFrame + 30],
     [0, 1],
-    {
-      extrapolateLeft: "clamp",
-      extrapolateRight: "clamp",
-    }
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
   );
 
   return (
-    <AbsoluteFill style={{ backgroundColor: "transparent" }}>
-      {/* 한양 지도 */}
-      <div
-        style={{
-          position: "absolute",
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          transform: `scale(${mapZoom})`,
-          transformOrigin: "center center",
-        }}
-      >
+    <AbsoluteFill>
+      {/* ========================================
+          Layer 0: 배경 이미지 (최하단)
+          ======================================== */}
+      <AbsoluteFill style={{ zIndex: Z_INDEX.background }}>
         <Img
-          src={staticFile("assets/maps/hanyang.png")}
+          src={staticFile("assets/backgrounds/bg_s2.png")}
           style={{
-            width: 700,
-            height: 700,
-            opacity: mapOpacity,
-            filter: "sepia(0.4) contrast(1.1)",
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            transform: `scale(${bgScale}) translateX(${bgPanX}px)`,
+            transformOrigin: "center center",
           }}
         />
-      </div>
+        {/* 다크 오버레이 (가독성 향상) */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.2)",
+          }}
+        />
+      </AbsoluteFill>
 
-      {/* 황금빛 하이라이트 효과 */}
-      <div
+      {/* ========================================
+          Layer 1: 콘텐츠 요소
+          ======================================== */}
+
+      {/* 얼음 채취 도구 (center-left) */}
+      <Img
+        src={staticFile("assets/icons/ice_harvesting.png")}
         style={{
           position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          width: 400,
-          height: 400,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(255,215,0,0.4) 0%, rgba(255,215,0,0) 70%)",
-          opacity: highlightPulse,
+          left: 180,
+          top: "45%",
+          transform: `translateY(-50%) translateX(${iceHarvestingX}px) rotate(${sawingMotion}deg)`,
+          width: IMAGE_SIZES.artifact,
+          opacity: iceHarvestingOpacity,
+          filter: "drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3))",
+          zIndex: Z_INDEX.content,
         }}
       />
 
-      {/* 노른자 땅 텍스트 */}
+      {/* 빙고 창고 (center-right) with mist effect */}
       <div
         style={{
           position: "absolute",
-          top: "28%",
-          left: 0,
-          right: 0,
-          textAlign: "center",
-          fontSize: 84,
-          fontFamily: "Pretendard, sans-serif",
-          fontWeight: 800,
-          color: "#FFD700",
-          textShadow: `${textStroke}, 0 4px 30px rgba(255, 215, 0, 0.8)`,
-          opacity: goldenTextOpacity,
+          right: 180,
+          top: "45%",
+          transform: `translateY(-50%) scale(${binggoScale})`,
+          opacity: binggoOpacity,
+          zIndex: Z_INDEX.content,
         }}
       >
-        노른자 땅
+        {/* Cold mist effect */}
+        <div
+          style={{
+            position: "absolute",
+            top: -20,
+            left: -30,
+            right: -30,
+            bottom: -20,
+            background: "radial-gradient(ellipse, rgba(200, 230, 255, 0.6) 0%, transparent 70%)",
+            opacity: mistOpacity,
+            filter: "blur(15px)",
+            zIndex: -1,
+          }}
+        />
+        <Img
+          src={staticFile("assets/icons/binggo_storage.png")}
+          style={{
+            width: IMAGE_SIZES.artifact,
+            filter: "drop-shadow(0 4px 12px rgba(100, 150, 200, 0.4))",
+          }}
+        />
+        {/* 라벨 */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: -35,
+            left: "50%",
+            transform: "translateX(-50%)",
+            fontSize: FONT_SIZES.label,
+            fontFamily: FONTS.primary,
+            fontWeight: 600,
+            color: "#FFFFFF",
+            textShadow: "2px 2px 4px rgba(0, 0, 0, 0.7)",
+            whiteSpace: "nowrap",
+            opacity: binggoOpacity,
+          }}
+        >
+          빙고
+        </div>
       </div>
 
-      {/* 물음표 아이콘 */}
-      {frame >= questionStartFrame && (
-        <div
+      {/* 왕실 문장 (top-center) */}
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: 120,
+          transform: `translateX(-50%) scale(${royalScale})`,
+          opacity: royalOpacity,
+          zIndex: Z_INDEX.content,
+        }}
+      >
+        <Img
+          src={staticFile("assets/icons/royal_emblem.png")}
           style={{
-            position: "absolute",
-            right: "15%",
-            top: "35%",
-            transform: `scale(${questionScale})`,
-            opacity: questionOpacity,
+            width: IMAGE_SIZES.iconLarge,
+            filter: `drop-shadow(0 0 ${20 * royalGlow}px rgba(255, 215, 0, ${0.6 * royalGlow}))`,
           }}
-        >
-          <Img
-            src={staticFile("assets/icons/question_mark.png")}
-            style={{
-              width: 150,
-              height: 220,
-            }}
-          />
-        </div>
-      )}
-
-      {/* 직업? 텍스트 */}
-      {frame >= questionStartFrame && (
+        />
+        {/* 왕실 특권 라벨 */}
         <div
           style={{
             position: "absolute",
-            right: "14%",
-            top: "60%",
-            fontSize: 56,
-            fontFamily: "Pretendard, sans-serif",
+            top: IMAGE_SIZES.iconLarge + 10,
+            left: "50%",
+            transform: "translateX(-50%)",
+            fontSize: FONT_SIZES.label,
+            fontFamily: FONTS.primary,
             fontWeight: 700,
-            color: "#FFFFFF",
-            textShadow: textStroke,
-            opacity: questionOpacity,
+            color: "#FFD700",
+            textShadow: "2px 2px 4px rgba(0, 0, 0, 0.8)",
+            whiteSpace: "nowrap",
+            opacity: royalOpacity,
           }}
         >
-          직업 = ?
+          왕실 특권
         </div>
-      )}
+      </div>
 
-      {/* 자막 */}
+      {/* ========================================
+          Layer 2: 자막 (최상단)
+          ======================================== */}
       {currentCaption && (
         <div
           style={{
             position: "absolute",
-            bottom: 40,
+            bottom: CAPTION_STYLE.bottom,
             left: 0,
             right: 0,
             textAlign: "center",
-            fontSize: 45,
-            fontFamily: "Pretendard, sans-serif",
-            fontWeight: 600,
-            color: "#000000",
-            textShadow: `${captionStroke}, 0 4px 8px rgba(0, 0, 0, 0.3)`,
-            padding: "0 40px",
-            zIndex: 1000,
+            fontSize: CAPTION_STYLE.fontSize,
+            fontFamily: CAPTION_STYLE.fontFamily,
+            fontWeight: CAPTION_STYLE.fontWeight,
+            color: CAPTION_STYLE.color,
+            textShadow: CAPTION_STROKE,
+            padding: CAPTION_STYLE.padding,
+            zIndex: Z_INDEX.caption,
           }}
         >
           {currentCaption.text}

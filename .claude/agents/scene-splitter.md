@@ -151,29 +151,36 @@ subtitle_segment: "보일러도 없고, 패딩도 없다."
 
 ---
 
-## 섹션별 처리
+## 1회 호출 (전체 처리)
 
-이 에이전트는 **섹션 단위로 호출**됩니다.
+> **이 에이전트는 1회 호출로 모든 씬의 타이밍을 처리합니다.**
+
+### 호출 규칙
+
+| 규칙 | 설명 |
+|------|------|
+| **1회 호출** | 모든 섹션/씬을 한 번에 처리 |
+| **섹션별 호출 금지** | hook, background 따로 호출 ❌ |
+
+### 올바른 호출 예시
 
 ```
-호출 예시:
-"hook 섹션의 scene-splitter 실행"
-→ s1, s2, s3 (hook 섹션의 씬들) 처리
-→ hook_whisper.json 참조
-→ s1_timed.json, s2_timed.json, s3_timed.json 출력
+"scene-splitter 에이전트로 자막 타이밍 매칭 실행"
 ```
 
-### 병렬 처리 가능
+**처리 내용:**
+- 모든 섹션의 whisper.json 참조
+- 모든 씬의 s{n}_timed.json 출력
+- 예: hook_whisper.json ~ outro_whisper.json → s1_timed.json ~ sN_timed.json
+
+### 잘못된 호출 예시 (절대 금지!)
 
 ```
-7개 섹션 병렬 호출:
-- "hook 섹션 scene-splitter"
-- "background 섹션 scene-splitter"
-- "core1 섹션 scene-splitter"
-- "core2 섹션 scene-splitter"
-- "core3 섹션 scene-splitter"
-- "insight 섹션 scene-splitter"
-- "outro 섹션 scene-splitter"
+❌ "hook 섹션 scene-splitter 실행"
+❌ "Part 1 scene-splitter 실행"
+(섹션/Part별 호출 불필요 - 1회로 전체 처리)
+
+❌ 병렬 호출 (run_in_background: true)
 ```
 
 ---
@@ -273,10 +280,12 @@ subtitle_segment: "조선시대 온돌의 원리는 간단합니다."
 ## 호출 방법
 
 ```
-Task tool로 섹션별 호출:
-"hook 섹션 scene-splitter 실행"
-"core1 섹션 scene-splitter 실행"
+Task tool로 1회 호출:
+
+"scene-splitter 에이전트로 자막 타이밍 매칭 실행"
 ```
+
+> **1회 호출로 모든 씬 처리!** 섹션/Part별 분할 호출 불필요.
 
 ## 참고
 
